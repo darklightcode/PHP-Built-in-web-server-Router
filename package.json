@@ -1,0 +1,23 @@
+{
+  "name": "php-built-in-web-server-router",
+  "version": "1.0.0",
+  "description": "A router for your PHP",
+  "scripts": {
+    "server": "php -S 0.0.0.0:9000 src/router.php"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/darklightcode/PHP-Built-in-web-server-Router.git"
+  },
+  "keywords": [
+    "php-router",
+    "router.php",
+    "router-development"
+  ],
+  "author": "darklight",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/darklightcode/PHP-Built-in-web-server-Router/issues"
+  },
+  "homepage": "https://github.com/darklightcode/PHP-Built-in-web-server-Router#readme"
+}
