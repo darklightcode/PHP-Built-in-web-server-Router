@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "description": "A router for your PHP",
   "scripts": {
-    "server": "php -S 0.0.0.0:9000 src/router.php"
+    "start-default": "php -S 0.0.0.0:9000 src/router.php",
+    "start-codeigniter": "php -S 0.0.0.0:9001 -t ./codeigniter src/router.php",
+    "start-yii": "php -S 0.0.0.0:9002 -t ./yii/web src/router.php",
+    "start-wordpress": "php -S 0.0.0.0:9003 -t ./wordpress src/router.php"
   },
   "repository": {
     "type": "git",
