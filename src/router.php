@@ -243,7 +243,15 @@ class PHP_Webserver_Router
 
         } else {
 
-            include($_SERVER['DOCUMENT_ROOT'] . "/$this->indexPath");
+            $url = parse_url($this->request_uri);
+
+            if (file_exists('.' . $url['path'])) {
+
+                return FALSE;
+
+            }
+
+            return include($_SERVER['DOCUMENT_ROOT'] . "/$this->indexPath");
 
         }
 
@@ -266,7 +274,7 @@ class PHP_Webserver_Router
 
                 $this->indexPath = $filename;
 
-                $this->bootstrap();
+                return $this->bootstrap();
 
             } else {
 
@@ -277,7 +285,7 @@ class PHP_Webserver_Router
 
         } else {
 
-            $this->bootstrap();
+            return $this->bootstrap();
 
         }
 
@@ -369,5 +377,5 @@ $php_web_server = new PHP_Webserver_Router();
 ###
 //$php_web_server->indexPath = "my_new_index_file.php";
 
-$php_web_server->listen();
+return $php_web_server->listen();
 
