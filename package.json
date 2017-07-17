@@ -1,7 +1,8 @@
 {
   "name": "php-built-in-web-server-router",
   "version": "1.0.0",
-  "description": "A router for your PHP",
+  "description": "A router library for your PHP Built-in Webserver.",
+  "main": "index.js",
   "scripts": {
     "start-default": "php -S 0.0.0.0:9000 src/router.php",
     "start-codeigniter": "php -S 0.0.0.0:9001 -t ./codeigniter src/router.php",
@@ -9,7 +10,8 @@
     "start-wordpress": "php -S 0.0.0.0:9003 -t ./wordpress src/router.php",
     "start-wordpress48": "php -S 0.0.0.0:9004 -t ./wordpress48 src/router.php",
     "start-drupal7": "php -S 0.0.0.0:9005 -t ./drupal7 src/router.php",
-    "start-drupal8": "php -d max_execution_time=280 -S 0.0.0.0:9006 -t ./drupal8 src/router.php"
+    "start-drupal8": "php -d max_execution_time=280 -S 0.0.0.0:9006 -t ./drupal8 src/router.php",
+    "test-router-path" : "node ./test/routerPath.js"
   },
   "repository": {
     "type": "git",
@@ -18,10 +20,14 @@
   "keywords": [
     "php-router",
     "router.php",
-    "router-development"
+    "router-development",
+    "php built-in webserver",
+    "php webserver",
+    "php development",
+    "node-php-awesome-server"
   ],
-  "author": "darklight",
-  "license": "ISC",
+  "author": "darklightcode <https://github.com/darklightcode> (https://github.com/darklightcode)",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/darklightcode/PHP-Built-in-web-server-Router/issues"
   },
