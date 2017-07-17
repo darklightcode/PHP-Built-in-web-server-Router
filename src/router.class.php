@@ -19,6 +19,7 @@ class PHP_Webserver_Router
     var $file_length = "";
     var $indexPath = "index.php";
     var $mvc_enabled = TRUE;
+    var $rules = array();
 
     var $http_status = 200;
 
@@ -26,6 +27,14 @@ class PHP_Webserver_Router
     var $php_notice = 0;
 
     function __construct()
+    {
+
+    }
+
+    /**
+     * Prepare variables
+     */
+    private function init()
     {
 
         set_error_handler(function ($error_type) {
@@ -38,9 +47,14 @@ class PHP_Webserver_Router
 
         }, E_ALL);
 
-        $browserInput = \filter_input(\INPUT_SERVER, 'REQUEST_URI', \FILTER_SANITIZE_ENCODED);
+        $this->request_uri = \filter_input(\INPUT_SERVER, 'REQUEST_URI', \FILTER_SANITIZE_ENCODED);
+        $this->request_uri = preg_replace('([/\\\]+)', '/', urldecode($this->request_uri));
 
-        $this->request_uri = urldecode(preg_replace('([/\\\]+)', '/', $browserInput ));
+        /**
+         * Start Rewrite Engine
+         */
+        $this->rewrite_engine();
+
         $this->physical_file = $_SERVER['SCRIPT_FILENAME'];
         $this->extension = strrev(strstr(strrev($this->physical_file), '.', TRUE));
 
@@ -59,8 +73,58 @@ class PHP_Webserver_Router
         $this->if_modified_since = (isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) ? $_SERVER['HTTP_IF_MODIFIED_SINCE'] : false);
         $this->eTagHeader = (isset($_SERVER['HTTP_IF_NONE_MATCH']) ? trim($_SERVER['HTTP_IF_NONE_MATCH']) : false);
 
+
     }
 
+    /**
+     * Add a rule match and a replace for it
+     * @param string $url_match
+     * @param string $rewrite
+     */
+    function rewrite_rule($url_match = "", $rewrite = "")
+    {
+
+        if (strlen($url_match)) {
+
+            $this->rules[] = array("url_match" => $url_match, "rewrite" => $rewrite);
+
+        }
+
+    }
+
+    /**
+     * Rewrite your rules
+     */
+    private function rewrite_engine($on = true)
+    {
+
+        if ($on) {
+
+            foreach ($this->rules as $k => $rule) {
+
+                if (preg_match('/' . $rule['url_match'] . '/', $this->request_uri, $match)) {
+
+                    if (count($match)) {
+
+                        header('Location: ' . preg_replace('/' . $rule['url_match'] . '/', $rule['rewrite'], $this->request_uri), true);
+
+                        exit();
+
+                    }
+
+                }
+
+            }
+
+        }
+
+    }
+
+    /**
+     * This will add a favicon.ico to your page
+     * Browsers will do a request for favicon.ico by default so if you don't have one you will see a 404 request
+     * To prevent that the router will serve you a default icon to make peace with /favicon.ico request
+     */
     function favicon()
     {
 
@@ -105,6 +169,10 @@ class PHP_Webserver_Router
 
     }
 
+    /**
+     * Output info to Terminal
+     * This won't work if it's being loaded through NODE.JS
+     */
     function log_output()
     {
 
@@ -120,11 +188,13 @@ class PHP_Webserver_Router
 
             $this->console(sprintf("%s [%s]: %s", $host_port, $this->http_status, urldecode($this->request_uri)));
 
-
         }
 
     }
 
+    /**
+     * Serve Cached Files
+     */
     function process_request()
     {
 
@@ -166,6 +236,9 @@ class PHP_Webserver_Router
 
     }
 
+    /**
+     * Serve your application
+     */
     function bootstrap()
     {
 
@@ -237,15 +310,6 @@ class PHP_Webserver_Router
         $load_index = $_SERVER['DOCUMENT_ROOT'] . "/" . $this->indexPath;
         $load_index = preg_replace('([/\\\]+)', '/', trim($load_index));
 
-        /**
-         * Drupal Theme | Modules installation fix
-         */
-        if( ($newLoadIndex = strstr($load_index,'/core/authorize.php/',true)) !== FALSE){
-
-            $load_index = $newLoadIndex;
-
-        }
-
         if (!file_exists($load_index)) {
 
             $not_found_message = "Your index file doesn't exist at " . $load_index;
@@ -269,8 +333,14 @@ class PHP_Webserver_Router
 
     }
 
+    /**
+     * Listen for requests
+     * @return bool|mixed
+     */
     function listen()
     {
+
+        $this->init();
 
         if (preg_match('/\.(.*?)$/', $this->request_uri)) {
 
@@ -294,7 +364,6 @@ class PHP_Webserver_Router
 
             }
 
-
         } else {
 
             return $this->bootstrap();
@@ -305,6 +374,10 @@ class PHP_Webserver_Router
 
     }
 
+    /**
+     * This is for development purpose
+     * You can output to console anything you want
+     */
     function console()
     {
 
@@ -325,7 +398,11 @@ class PHP_Webserver_Router
 
     }
 
-    function retrieve_mime_types()
+    /**
+     * Load mime types
+     * @return array|mixed|object
+     */
+    private function retrieve_mime_types()
     {
 
         $mimes_file = dirname(__FILE__) . '/mimes.json';
@@ -340,6 +417,9 @@ class PHP_Webserver_Router
 
     }
 
+    /**
+     * Download and create a mimes.json if you don't have one
+     */
     private function create_mime_file()
     {
 
@@ -369,6 +449,5 @@ class PHP_Webserver_Router
         fwrite(fopen(dirname(__FILE__) . '/mimes.json', 'w+'), json_encode($tmp_arr));
 
     }
-
 
 }
