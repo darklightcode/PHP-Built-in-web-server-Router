@@ -20,7 +20,7 @@ I highly recommend [node-php-awesome-server](https://www.npmjs.com/package/node-
 ```
 npm install node-php-awesome-server --save-dev
 ```
-If you install this as a npm package you can only retrieve the absolute paths of the router and the library file.
+If you install this as a npm package you can only retrieve the absolute paths of the router, the library file and a cURL certificate.
 ```
 npm install php-built-in-web-server-router --save-dev
 ```
@@ -29,6 +29,7 @@ let router = require('php-built-in-web-server-router');
 
 console.log('Router path: ', router.path);
 console.log('Router library: ', router.lib);
+console.log('cURL certificate: ', router.cert);
 
 ```
 

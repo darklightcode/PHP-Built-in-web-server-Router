@@ -9,3 +9,4 @@ function root(args) {
 
 exports.path = root('src','router.php');
 exports.lib = root('src','router.class.php');
+exports.cert = root('src','cacert.pem');
