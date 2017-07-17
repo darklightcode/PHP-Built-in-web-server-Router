@@ -2,6 +2,9 @@
 
 require(dirname(__FILE__) . "/router.class.php");
 
+/**
+ * Enable errors
+ */
 $_SERVER["CI_ENV"] = "development";
 error_reporting(E_ALL);
 
