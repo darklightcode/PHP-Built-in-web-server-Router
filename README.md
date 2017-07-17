@@ -2,7 +2,7 @@
 
 # PHP-Built-in-web-server-Router
 
-This library comes with **caching support** for [**PHP built-in web-server**](http://php.net/manual/ro/features.commandline.webserver.php)
+This library comes with **caching support** for [**PHP built-in web-server**](http://php.net/manual/en/features.commandline.webserver.php)
 
 Router.php is loaded before index.php, so you can:
 * Have **CORS** enabled 
