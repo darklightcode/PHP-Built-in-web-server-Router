@@ -24,8 +24,8 @@
     "php built-in webserver",
     "php webserver"
   ],
-  "author": "darklight",
-  "license": "ISC",
+  "author": "darklightcode <https://github.com/darklightcode> (https://github.com/darklightcode)",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/darklightcode/PHP-Built-in-web-server-Router/issues"
   },

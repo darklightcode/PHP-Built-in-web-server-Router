@@ -15,12 +15,29 @@ Don't forget to delete it after usage, this function is meant only for Developme
 
 ```console_output( $string , 'another', array('show'=>1) , ...args )```
 
+### NODE.JS
+I highly recommend [node-php-awesome-server](https://www.npmjs.com/package/node-php-awesome-server) if you need a php webserver in a node environment, it uses this router as default router, and much more various configuration options.
+```
+npm install node-php-awesome-server --save-dev
+```
+If you install this as a npm package you can only retrieve the absolute paths of the router and the library file.
+```
+npm install php-built-in-web-server-router --save-dev
+```
+```javascript
+let router = require('php-built-in-web-server-router');
+
+console.log('Router path: ', router.path);
+console.log('Router library: ', router.lib);
+
+```
+
 # Requirements
 PHP 5.4.0+ and /src/mimes.json file.
 
 # Usage
 
-Bellow you'll find a few examples. Additional params may be found [here](http://php.net/manual/ro/features.commandline.webserver.php)
+Bellow you'll find a few examples. Additional params may be found [here](http://php.net/manual/en/features.commandline.webserver.php)
 
 1. If router.php is located in the root folder
 ```cli
@@ -53,15 +70,10 @@ This are the default settings.
 
 
 ```
-###
-# ALLOW CORS
-###
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, GET, OPTIONS, PUT, DELETE, CUSTOMREQUEST, REQUEST');
-header('Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Access-Control-Allow-Origin, X-Token');
+# class PHP_Webserver_Router{...}
+#    or   
 
-    
-class PHP_Webserver_Router{...}
+include('router.class.php');
     
 ###
 # Set up early your environment variables/constants
@@ -70,7 +82,6 @@ class PHP_Webserver_Router{...}
 $_SERVER["ENVIRONMENT"] = "development";
 error_reporting(E_ALL);
 
-    
  
 $php_web_server = new PHP_Webserver_Router();
 
@@ -85,16 +96,15 @@ $php_web_server = new PHP_Webserver_Router();
 ###
 //$php_web_server->indexPath = "my_new_index_file.php";
 
-
-    
-$php_web_server->listen();
+return $php_web_server->listen();
 ```
 
 # Notes
 I've tested this with simple php files and the following php frameworks:
 * Yii2 ( i know Yii2 has [it's own webserver](http://www.yiiframework.com/wiki/819/php-built-in-server-integration/), but it doesn't have caching support unfortunately )
 * CodeIgniter 3
-* Wordpress ( You may encounter [The White Screen of Death](https://codex.wordpress.org/Common_WordPress_Errors) upon installing, if so, you will need to manually create and modify wp-config.php with the database params )
+* Wordpress
+* Drupal 7 and 8
 
 On the first request sent to router.php, it will attempt to download and create mimes.json, if that fails, you can find mimes.json in ./src/ and copy it next to router.php
 
