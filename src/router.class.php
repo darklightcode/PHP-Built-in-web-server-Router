@@ -179,9 +179,9 @@ class PHP_Webserver_Router
         if ($this->log_enable) {
 
             $host_port = $_SERVER["REMOTE_ADDR"] . ":" . $_SERVER["REMOTE_PORT"];
-            $split = explode("?", urldecode($this->request_uri));
+            $uri_path = explode("?", urldecode($this->request_uri));
 
-            if (!file_exists($_SERVER['DOCUMENT_ROOT'] . '/' . $split[0])) {
+            if (!file_exists($_SERVER['DOCUMENT_ROOT'] . '/' . $uri_path[0])) {
                 $this->http_status = 404;
                 clearstatcache();
             }
@@ -198,9 +198,9 @@ class PHP_Webserver_Router
     function process_request()
     {
 
-        $split = explode("?", urldecode($this->request_uri));
+        $uri_path = $this->getURI_no_query();
 
-        if (!file_exists($_SERVER['DOCUMENT_ROOT'] . '/' . $split[0])) {
+        if (!file_exists($_SERVER['DOCUMENT_ROOT'] . '/' . urldecode(substr($uri_path,1)))) {
 
             $this->favicon();
 
@@ -208,7 +208,6 @@ class PHP_Webserver_Router
             $this->http_status = 404;
 
         } else {
-
 
             header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $this->last_modified) . ' GMT');
             header('Etag: ' . $this->eTag);
@@ -228,11 +227,14 @@ class PHP_Webserver_Router
                 header('Content-Length: ' . $this->file_length);
                 @readfile($this->physical_file);
 
+
             }
 
         }
 
         $this->log_output();
+
+        exit(0);
 
     }
 
@@ -255,11 +257,12 @@ class PHP_Webserver_Router
 
         chdir($_SERVER['DOCUMENT_ROOT']);
 
-        $split = explode("?", urldecode($this->request_uri));
+        $uri_path = $this->getURI_no_query();
+        $uri_filepath = $_SERVER['DOCUMENT_ROOT'] . '/' . urldecode(substr($uri_path,1));
 
         if ($this->mvc_enabled == FALSE) {
 
-            if (!file_exists($_SERVER['DOCUMENT_ROOT'] . '/' . $split[0]) && !is_dir($_SERVER['DOCUMENT_ROOT'] . '/' . $split[0])) {
+            if (!file_exists($uri_filepath) && !is_dir($uri_filepath)) {
 
                 header('HTTP/1.1 404 Not Found');
                 $this->log_output();
@@ -267,7 +270,7 @@ class PHP_Webserver_Router
 
             } else {
 
-                $new_dir = $_SERVER['DOCUMENT_ROOT'] . '/' . $split[0];
+                $new_dir = $uri_filepath;
 
                 if (is_dir($new_dir)) {
 
@@ -282,7 +285,7 @@ class PHP_Webserver_Router
                         if (in_array($index, $search_files) && $found_index == false) {
 
                             $found_index = true;
-                            $this->indexPath = $split[0] . "/" . $index;
+                            $this->indexPath = $uri_path . "/" . $index;
 
                         }
 
@@ -306,30 +309,50 @@ class PHP_Webserver_Router
 
         }
 
-
         $load_index = $_SERVER['DOCUMENT_ROOT'] . "/" . $this->indexPath;
         $load_index = preg_replace('([/\\\]+)', '/', trim($load_index));
 
         if (!file_exists($load_index)) {
 
-            $not_found_message = "Your index file doesn't exist at " . $load_index;
+            $not_found_message = "Your script file doesn't exist at " . $load_index;
 
             $this->console($not_found_message);
             exit($not_found_message);
 
         } else {
 
-            $url = parse_url($this->request_uri);
 
-            if (file_exists('.' . $url['path']) && !is_dir('.' . $url['path'])) {
+            if (file_exists($uri_filepath) && !is_dir($uri_filepath)) {
 
-                return FALSE;
+                $this->process_request();
+
+                exit();
+
+            } else {
+
+                return include($_SERVER['DOCUMENT_ROOT'] . "/$this->indexPath");
 
             }
 
-            return include($_SERVER['DOCUMENT_ROOT'] . "/$this->indexPath");
+        }
+
+    }
+
+    /**
+     * Remove query from REQUEST_URI if it has one
+     * @return string
+     */
+    private function getURI_no_query()
+    {
+        $filename = $this->request_uri;
+
+        if (($found = strstr($this->request_uri, "?", TRUE)) != FALSE) {
+
+            $filename = $found;
 
         }
+
+        return $filename;
 
     }
 
@@ -342,35 +365,27 @@ class PHP_Webserver_Router
 
         $this->init();
 
-        if (preg_match('/\.(.*?)$/', $this->request_uri)) {
+        $filename = $this->getURI_no_query();
 
-            $filename = $this->request_uri;
+        $isScript = strrev(strstr(strrev(strtolower($filename)), '.', TRUE)) == 'php' ? true : false;
 
-            if (($found = strstr($this->request_uri, "?", TRUE)) != FALSE) {
+        if ($isScript) {
 
-                $filename = $found;
+            if ($this->mvc_enabled == TRUE) {
 
-            }
+                return FALSE;
 
-            if (strrev(strstr(strrev($filename), '.', TRUE)) == 'php') {
+            } else {
 
                 $this->indexPath = $filename;
 
                 return $this->bootstrap();
 
-            } else {
-
-                $this->process_request();
-
             }
-
-        } else {
-
-            return $this->bootstrap();
 
         }
 
-        exit;
+        return $this->bootstrap();
 
     }
 
@@ -437,9 +452,9 @@ class PHP_Webserver_Router
 
         foreach ($s as $k => $v) {
 
-            $split = explode('=>', $v);
-            $new_key = trim(preg_replace('/\s+/', '', str_replace(array("   '", "'", " ", "	", "   ", '&nbsp;'), "", $split[0])));
-            $new_val = trim(str_replace(array("   '", "'"), "", $split[1]));
+            $uri_path = explode('=>', $v);
+            $new_key = trim(preg_replace('/\s+/', '', str_replace(array("   '", "'", " ", "	", "   ", '&nbsp;'), "", $uri_path[0])));
+            $new_val = trim(str_replace(array("   '", "'"), "", $uri_path[1]));
 
             $tmp_arr[$new_key] = $new_val;
 
