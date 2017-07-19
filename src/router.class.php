@@ -93,7 +93,8 @@ class PHP_Webserver_Router
     }
 
     /**
-     * Rewrite your rules
+     * Rewrite your rules - EXPERIMENTAL
+     * @param bool $on
      */
     private function rewrite_engine($on = true)
     {
@@ -198,9 +199,9 @@ class PHP_Webserver_Router
     function process_request()
     {
 
-        $uri_path = $this->getURI_no_query();
+        $uri_path = $this->URI_no_query();
 
-        if (!file_exists($_SERVER['DOCUMENT_ROOT'] . '/' . urldecode(substr($uri_path,1)))) {
+        if (!file_exists($_SERVER['DOCUMENT_ROOT'] . '/' . urldecode(substr($uri_path, 1)))) {
 
             $this->favicon();
 
@@ -257,8 +258,8 @@ class PHP_Webserver_Router
 
         chdir($_SERVER['DOCUMENT_ROOT']);
 
-        $uri_path = $this->getURI_no_query();
-        $uri_filepath = $_SERVER['DOCUMENT_ROOT'] . '/' . urldecode(substr($uri_path,1));
+        $uri_path = $this->URI_no_query();
+        $uri_filepath = $_SERVER['DOCUMENT_ROOT'] . '/' . urldecode(substr($uri_path, 1));
 
         if ($this->mvc_enabled == FALSE) {
 
@@ -342,7 +343,7 @@ class PHP_Webserver_Router
      * Remove query from REQUEST_URI if it has one
      * @return string
      */
-    private function getURI_no_query()
+    private function URI_no_query()
     {
         $filename = $this->request_uri;
 
@@ -357,6 +358,46 @@ class PHP_Webserver_Router
     }
 
     /**
+     * Retrieve the first encounter of a filename in REQUEST_URI
+     * e.g something/edit.php/id?and=query   =   something/edit.php
+     */
+    private function URI_Filename()
+    {
+
+        $uri_split = explode('/', substr($this->URI_no_query(), 1));
+
+        if ( $total = count($uri_split)) {
+
+            foreach ($uri_split as $current_key => $segment) {
+
+                if (strstr($segment, '.', TRUE) !== FALSE) {
+
+                    for ($i = $current_key+1; $i < $total; $i++) {
+
+                        unset($uri_split[$i]);
+
+                    }
+
+                    return implode('/', $uri_split);
+
+                }
+
+            }
+
+        }
+
+        return FALSE;
+
+    }
+
+    private function URIhasPHP()
+    {
+
+        return strrev(strstr(strrev(strtolower($this->URI_Filename())), '.', TRUE)) == 'php' ? TRUE : FALSE;
+
+    }
+
+    /**
      * Listen for requests
      * @return bool|mixed
      */
@@ -365,11 +406,7 @@ class PHP_Webserver_Router
 
         $this->init();
 
-        $filename = $this->getURI_no_query();
-
-        $isScript = strrev(strstr(strrev(strtolower($filename)), '.', TRUE)) == 'php' ? true : false;
-
-        if ($isScript) {
+        if ($this->URIhasPHP()) {
 
             if ($this->mvc_enabled == TRUE) {
 
@@ -377,7 +414,7 @@ class PHP_Webserver_Router
 
             } else {
 
-                $this->indexPath = $filename;
+                $this->indexPath = $this->URI_Filename() !== FALSE ? $this->URI_Filename() : $this->URI_no_query();
 
                 return $this->bootstrap();
 
