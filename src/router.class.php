@@ -7,16 +7,24 @@ header('Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Ac
 class PHP_Webserver_Router
 {
 
+    private $request_uri = "";
+    private $physical_file = "";
+    private $extension = "";
+    private $eTag = "";
+    private $eTagHeader = "";
+    private $last_modified = "";
+    private $if_modified_since = "";
+    private $file_length = "";
+
+    /**
+     * GZIP Compression
+     */
+    private $gzip = false;
+    private $gzip_types = array('x-gzip', 'gzip');
+    private $gzip_encoding = "";
+
     var $log_enable = TRUE;
 
-    var $request_uri = "";
-    var $physical_file = "";
-    var $extension = "";
-    var $eTag = "";
-    var $eTagHeader = "";
-    var $last_modified = "";
-    var $if_modified_since = "";
-    var $file_length = "";
     var $indexPath = "index.php";
     var $mvc_enabled = TRUE;
     var $rules = array();
@@ -51,6 +59,31 @@ class PHP_Webserver_Router
         $this->request_uri = preg_replace('([/\\\]+)', '/', urldecode($this->request_uri));
 
         /**
+         * Check if browser accepts gzip
+         */
+        if (isset($_SERVER['HTTP_ACCEPT_ENCODING'])) {
+
+            $list_encoding = explode(',', $_SERVER['HTTP_ACCEPT_ENCODING']);
+
+            if (count($list_encoding)) {
+
+                foreach ($list_encoding as $encoding_type) {
+
+                    if (($encoding = array_search(trim(strtolower($encoding_type)), $this->gzip_types)) !== FALSE) {
+
+                        $this->gzip = true;
+                        $this->gzip_encoding = $this->gzip_types[$encoding];
+                        break;
+
+                    }
+
+                }
+
+            }
+
+        }
+
+        /**
          * Start Rewrite Engine
          */
         $this->rewrite_engine();
@@ -72,7 +105,6 @@ class PHP_Webserver_Router
 
         $this->if_modified_since = (isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) ? $_SERVER['HTTP_IF_MODIFIED_SINCE'] : false);
         $this->eTagHeader = (isset($_SERVER['HTTP_IF_NONE_MATCH']) ? trim($_SERVER['HTTP_IF_NONE_MATCH']) : false);
-
 
     }
 
@@ -225,8 +257,30 @@ class PHP_Webserver_Router
                 $mime_type = isset($mime_type_db[$this->extension]) ? $mime_type_db[$this->extension] : mime_content_type($this->physical_file);
 
                 header('Content-Type: ' . $mime_type);
-                header('Content-Length: ' . $this->file_length);
-                @readfile($this->physical_file);
+
+                if ($this->gzip) {
+
+                    ob_start('ob_gzhandler');
+                    ob_implicit_flush(0);
+
+                    $fileData = file_get_contents($this->physical_file);
+
+                    echo gzcompress($fileData);
+
+                    $contents = ob_get_contents();
+
+                    ob_end_clean();
+
+                    header('Content-Encoding: ' . $this->gzip_encoding);
+                    print("\x1f\x8b\x08\x00\x00\x00\x00\x00");
+                    echo $contents;
+
+                } else {
+
+                    header('Content-Length: ' . $this->file_length);
+                    @readfile($this->physical_file);
+
+                }
 
 
             }
@@ -366,13 +420,13 @@ class PHP_Webserver_Router
 
         $uri_split = explode('/', substr($this->URI_no_query(), 1));
 
-        if ( $total = count($uri_split)) {
+        if ($total = count($uri_split)) {
 
             foreach ($uri_split as $current_key => $segment) {
 
                 if (strstr($segment, '.', TRUE) !== FALSE) {
 
-                    for ($i = $current_key+1; $i < $total; $i++) {
+                    for ($i = $current_key + 1; $i < $total; $i++) {
 
                         unset($uri_split[$i]);
 
