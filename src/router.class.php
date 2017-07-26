@@ -16,6 +16,7 @@ $headers = array('Accept', 'Accept-CH', 'Accept-Charset', 'Accept-Datetime', 'Ac
     'Upgrade', 'User-Agent', 'Variant-Vary', 'Vary', 'Version', 'Via', 'Viewport-Width', 'WWW-Authenticate', 'Want-Digest', 'Warning', 'Width', 'X-Content-Duration',
     'X-Content-Security-Policy', 'X-Content-Type-Options', 'X-CustomHeader', 'X-DNSPrefetch-Control', 'X-Forwarded-For', 'X-Forwarded-Port', 'X-Forwarded-Proto', 'X-Frame-Options',
     'X-Modified', 'X-OTHER', 'X-PING', 'X-PINGOTHER', 'X-Powered-By', 'X-Requested-With', 'X-Token');
+
 header('Time-Zone: ' . @date_default_timezone_get());
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Expose-Headers: ' . implode(',', $headers));
@@ -209,6 +210,14 @@ class PHP_Webserver_Router
             header('ETag: ' . $this->eTag);
             header('Cache-Control: public');
 
+            /**
+             * Always set Content-Type and Content-Length
+             * Pipes and Proxies will need them
+             */
+            $mime_type = $this->get_mime_type();
+            header('Content-Type: ' . $mime_type);
+            header('Content-Length: ' . $this->file_length);
+
             if (@strtotime($_SERVER['HTTP_IF_MODIFIED_SINCE']) == $this->last_modified || $this->eTagHeader == $this->eTag) {
 
                 header('HTTP/1.1 304 Not Modified');
@@ -216,10 +225,6 @@ class PHP_Webserver_Router
 
             } else {
 
-                $mime_type = $this->get_mime_type();
-
-                header('Content-Type: ' . $mime_type);
-                header('Content-Length: ' . $this->file_length);
                 @readfile($this->physical_file);
 
                 exit;
