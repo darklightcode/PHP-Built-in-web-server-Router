@@ -1,22 +1,42 @@
 <?php
+$headers = array('Accept', 'Accept-CH', 'Accept-Charset', 'Accept-Datetime', 'Accept-Encoding', 'Accept-Ext', 'Accept-Features', 'Accept-Language', 'Accept-Params', 'Accept-Ranges',
+    'Access-Control-Allow-Credentials', 'Access-Control-Allow-Headers', 'Access-Control-Allow-Methods', 'Access-Control-Allow-Origin', 'Access-Control-Expose-Headers',
+    'Access-Control-Max-Age', 'Access-Control-Request-Headers', 'Access-Control-Request-Method', 'Age', 'Allow', 'Alternates', 'Authentication-Info', 'Authorization', 'C-Ext',
+    'C-Man', 'C-Opt', 'C-PEP', 'C-PEP-Info', 'CONNECT', 'Cache-Control', 'Compliance', 'Connection', 'Content-Base', 'Content-Disposition', 'Content-Encoding', 'Content-ID',
+    'Content-Language', 'Content-Length', 'Content-Location', 'Content-MD5', 'Content-Range', 'Content-Script-Type', 'Content-Security-Policy', 'Content-Style-Type',
+    'Content-Transfer-Encoding', 'Content-Type', 'Content-Version', 'Cookie', 'Cost', 'DAV', 'DELETE', 'DNT', 'DPR', 'Date', 'Default-Style', 'Delta-Base', 'Depth', 'Derived-From',
+    'Destination', 'Differential-ID', 'Digest', 'ETag', 'Expect', 'Expires', 'Ext', 'From', 'GET', 'GetProfile', 'HEAD', 'HTTP-date', 'Host', 'IM', 'If', 'If-Match',
+    'If-Modified-Since', 'If-None-Match', 'If-Range', 'If-Unmodified-Since', 'Keep-Alive', 'Label', 'Last-Event-ID', 'Last-Modified', 'Link', 'Location', 'Lock-Token',
+    'MIME-Version', 'Man', 'Max-Forwards', 'Media-Range', 'Message-ID', 'Meter', 'Negotiate', 'Non-Compliance', 'OPTION', 'OPTIONS', 'OWS', 'Opt', 'Optional', 'Ordering-Type',
+    'Origin', 'Overwrite', 'P3P', 'PEP', 'PICS-Label', 'POST', 'PUT', 'Pep-Info', 'Permanent', 'Position', 'Pragma', 'ProfileObject', 'Protocol', 'Protocol-Query', 'Protocol-Request',
+    'Proxy-Authenticate', 'Proxy-Authentication-Info', 'Proxy-Authorization', 'Proxy-Features', 'Proxy-Instruction', 'Public', 'RWS', 'Range', 'Referer', 'Refresh', 'Resolution-Hint',
+    'Resolver-Location', 'Retry-After', 'Safe', 'Sec-Websocket-Extensions', 'Sec-Websocket-Key', 'Sec-Websocket-Origin', 'Sec-Websocket-Protocol', 'Sec-Websocket-Version',
+    'Security-Scheme', 'Server', 'Set-Cookie', 'Set-Cookie2', 'SetProfile', 'SoapAction', 'Status', 'Status-URI', 'Strict-Transport-Security', 'SubOK', 'Subst', 'Surrogate-Capability',
+    'Surrogate-Control', 'TCN', 'TE', 'TRACE', 'Timeout', 'Title', 'Trailer', 'Transfer-Encoding', 'UA-Color', 'UA-Media', 'UA-Pixels', 'UA-Resolution', 'UA-Windowpixels', 'URI',
+    'Upgrade', 'User-Agent', 'Variant-Vary', 'Vary', 'Version', 'Via', 'Viewport-Width', 'WWW-Authenticate', 'Want-Digest', 'Warning', 'Width', 'X-Content-Duration',
+    'X-Content-Security-Policy', 'X-Content-Type-Options', 'X-CustomHeader', 'X-DNSPrefetch-Control', 'X-Forwarded-For', 'X-Forwarded-Port', 'X-Forwarded-Proto', 'X-Frame-Options',
+    'X-Modified', 'X-OTHER', 'X-PING', 'X-PINGOTHER', 'X-Powered-By', 'X-Requested-With', 'X-Token');
+header('Time-Zone: ' . @date_default_timezone_get());
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Expose-Headers: X-Token');
-header('Access-Control-Allow-Methods: POST, GET, OPTIONS, PUT, DELETE, CUSTOMREQUEST, REQUEST');
-header('Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Access-Control-Allow-Origin, X-Token, Authorization');
+header('Access-Control-Expose-Headers: ' . implode(',', $headers));
+header('Access-Control-Allow-Methods: CONNECT, CUSTOMREQUEST, DEBUG, DELETE, DONE, GET, HEAD, HTTP, HTTP/0.9, HTTP/1.0, HTTP/1.1, HTTP/2, OPTIONS, ORIGIN, ORIGINS, PATCH, POST, PUT, QUIC, REST, REQUEST, SESSION, SHOULD, SPDY, TRACE, TRACK');
+header('Access-Control-Allow-Headers: ' . implode(',', $headers));
 
 class PHP_Webserver_Router
 {
 
+    private $request_uri = "";
+    private $physical_file = "";
+    private $extension = "";
+    private $eTag = "";
+    private $eTagHeader = "";
+    private $last_modified = "";
+    private $if_modified_since = "";
+    private $file_length = "";
+
+
     var $log_enable = TRUE;
 
-    var $request_uri = "";
-    var $physical_file = "";
-    var $extension = "";
-    var $eTag = "";
-    var $eTagHeader = "";
-    var $last_modified = "";
-    var $if_modified_since = "";
-    var $file_length = "";
     var $indexPath = "index.php";
     var $mvc_enabled = TRUE;
     var $rules = array();
@@ -50,12 +70,7 @@ class PHP_Webserver_Router
         $this->request_uri = \filter_input(\INPUT_SERVER, 'REQUEST_URI', \FILTER_SANITIZE_ENCODED);
         $this->request_uri = preg_replace('([/\\\]+)', '/', urldecode($this->request_uri));
 
-        /**
-         * Start Rewrite Engine
-         */
-        $this->rewrite_engine();
-
-        $this->physical_file = $_SERVER['SCRIPT_FILENAME'];
+        $this->physical_file = preg_replace('([/\\\]+)', '/', $_SERVER['SCRIPT_FILENAME']);
         $this->extension = strrev(strstr(strrev($this->physical_file), '.', TRUE));
 
         $this->last_modified = time();
@@ -72,51 +87,6 @@ class PHP_Webserver_Router
 
         $this->if_modified_since = (isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) ? $_SERVER['HTTP_IF_MODIFIED_SINCE'] : false);
         $this->eTagHeader = (isset($_SERVER['HTTP_IF_NONE_MATCH']) ? trim($_SERVER['HTTP_IF_NONE_MATCH']) : false);
-
-
-    }
-
-    /**
-     * Add a rule match and a replace for it
-     * @param string $url_match
-     * @param string $rewrite
-     */
-    function rewrite_rule($url_match = "", $rewrite = "")
-    {
-
-        if (strlen($url_match)) {
-
-            $this->rules[] = array("url_match" => $url_match, "rewrite" => $rewrite);
-
-        }
-
-    }
-
-    /**
-     * Rewrite your rules
-     */
-    private function rewrite_engine($on = true)
-    {
-
-        if ($on) {
-
-            foreach ($this->rules as $k => $rule) {
-
-                if (preg_match('/' . $rule['url_match'] . '/', $this->request_uri, $match)) {
-
-                    if (count($match)) {
-
-                        header('Location: ' . preg_replace('/' . $rule['url_match'] . '/', $rule['rewrite'], $this->request_uri), true);
-
-                        exit();
-
-                    }
-
-                }
-
-            }
-
-        }
 
     }
 
@@ -179,9 +149,9 @@ class PHP_Webserver_Router
         if ($this->log_enable) {
 
             $host_port = $_SERVER["REMOTE_ADDR"] . ":" . $_SERVER["REMOTE_PORT"];
-            $split = explode("?", urldecode($this->request_uri));
+            $uri_path = explode("?", urldecode($this->request_uri));
 
-            if (!file_exists($_SERVER['DOCUMENT_ROOT'] . '/' . $split[0])) {
+            if (!file_exists($_SERVER['DOCUMENT_ROOT'] . '/' . $uri_path[0])) {
                 $this->http_status = 404;
                 clearstatcache();
             }
@@ -193,14 +163,40 @@ class PHP_Webserver_Router
     }
 
     /**
-     * Serve Cached Files
+     * Retrieve the mime type of a file
+     * @param string $filename
+     * @return mixed|string
+     */
+    private function get_mime_type($filename = "")
+    {
+
+        $mime_type_db = $this->retrieve_mime_types();
+
+        if (strlen($filename) == 0) {
+
+            $mime_type = isset($mime_type_db[$this->extension]) ? $mime_type_db[$this->extension] : mime_content_type($this->physical_file);
+
+        } else {
+
+            $extension = strrev(strstr(strrev($filename), '.', TRUE));
+            $mime_type = isset($mime_type_db[$extension]) ? $mime_type_db[$extension] : mime_content_type($filename);
+
+        }
+
+
+        return $mime_type;
+
+    }
+
+    /**
+     * Serve CACHED | RAW Files
      */
     function process_request()
     {
 
-        $split = explode("?", urldecode($this->request_uri));
+        $uri_path = $this->URI_no_query();
 
-        if (!file_exists($_SERVER['DOCUMENT_ROOT'] . '/' . $split[0])) {
+        if (!file_exists($_SERVER['DOCUMENT_ROOT'] . '/' . urldecode(substr($uri_path, 1)))) {
 
             $this->favicon();
 
@@ -209,9 +205,8 @@ class PHP_Webserver_Router
 
         } else {
 
-
             header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $this->last_modified) . ' GMT');
-            header('Etag: ' . $this->eTag);
+            header('ETag: ' . $this->eTag);
             header('Cache-Control: public');
 
             if (@strtotime($_SERVER['HTTP_IF_MODIFIED_SINCE']) == $this->last_modified || $this->eTagHeader == $this->eTag) {
@@ -221,18 +216,21 @@ class PHP_Webserver_Router
 
             } else {
 
-                $mime_type_db = $this->retrieve_mime_types();
-                $mime_type = isset($mime_type_db[$this->extension]) ? $mime_type_db[$this->extension] : mime_content_type($this->physical_file);
+                $mime_type = $this->get_mime_type();
 
                 header('Content-Type: ' . $mime_type);
                 header('Content-Length: ' . $this->file_length);
                 @readfile($this->physical_file);
+
+                exit;
 
             }
 
         }
 
         $this->log_output();
+
+        exit;
 
     }
 
@@ -255,11 +253,12 @@ class PHP_Webserver_Router
 
         chdir($_SERVER['DOCUMENT_ROOT']);
 
-        $split = explode("?", urldecode($this->request_uri));
+        $uri_path = $this->URI_no_query();
+        $uri_filepath = $_SERVER['DOCUMENT_ROOT'] . '/' . urldecode(substr($uri_path, 1));
 
         if ($this->mvc_enabled == FALSE) {
 
-            if (!file_exists($_SERVER['DOCUMENT_ROOT'] . '/' . $split[0]) && !is_dir($_SERVER['DOCUMENT_ROOT'] . '/' . $split[0])) {
+            if (!file_exists($uri_filepath) && !is_dir($uri_filepath)) {
 
                 header('HTTP/1.1 404 Not Found');
                 $this->log_output();
@@ -267,7 +266,7 @@ class PHP_Webserver_Router
 
             } else {
 
-                $new_dir = $_SERVER['DOCUMENT_ROOT'] . '/' . $split[0];
+                $new_dir = $uri_filepath;
 
                 if (is_dir($new_dir)) {
 
@@ -282,7 +281,7 @@ class PHP_Webserver_Router
                         if (in_array($index, $search_files) && $found_index == false) {
 
                             $found_index = true;
-                            $this->indexPath = $split[0] . "/" . $index;
+                            $this->indexPath = $uri_path . "/" . $index;
 
                         }
 
@@ -306,30 +305,93 @@ class PHP_Webserver_Router
 
         }
 
-
         $load_index = $_SERVER['DOCUMENT_ROOT'] . "/" . $this->indexPath;
         $load_index = preg_replace('([/\\\]+)', '/', trim($load_index));
 
         if (!file_exists($load_index)) {
 
-            $not_found_message = "Your index file doesn't exist at " . $load_index;
+            $not_found_message = "Your script file doesn't exist at " . $load_index;
 
             $this->console($not_found_message);
             exit($not_found_message);
 
         } else {
 
-            $url = parse_url($this->request_uri);
+            if (file_exists($uri_filepath) && !is_dir($uri_filepath)) {
 
-            if (file_exists('.' . $url['path']) && !is_dir('.' . $url['path'])) {
+                $this->process_request();
 
-                return FALSE;
+                exit();
+
+            } else {
+
+                return include($_SERVER['DOCUMENT_ROOT'] . "/$this->indexPath");
 
             }
 
-            return include($_SERVER['DOCUMENT_ROOT'] . "/$this->indexPath");
+        }
+
+    }
+
+    /**
+     * Remove query from REQUEST_URI if it has one
+     * @return string
+     */
+    private function URI_no_query()
+    {
+        $filename = $this->request_uri;
+
+        if (($found = strstr($this->request_uri, "?", TRUE)) != FALSE) {
+
+            $filename = $found;
 
         }
+
+        return $filename;
+
+    }
+
+    /**
+     * Retrieve the first encounter of a filename in REQUEST_URI
+     * e.g something/edit.php/id?and=query   =   something/edit.php
+     */
+    private function URI_Filename()
+    {
+
+        $uri_split = explode('/', substr($this->URI_no_query(), 1));
+
+        if ($total = count($uri_split)) {
+
+            foreach ($uri_split as $current_key => $segment) {
+
+                if (strstr($segment, '.', TRUE) !== FALSE) {
+
+                    for ($i = $current_key + 1; $i < $total; $i++) {
+
+                        unset($uri_split[$i]);
+
+                    }
+
+                    return implode('/', $uri_split);
+
+                }
+
+            }
+
+        }
+
+        return FALSE;
+
+    }
+
+    /**
+     * Check if the requested URI is a PHP script
+     * @return bool
+     */
+    private function URIhasPHP()
+    {
+
+        return strrev(strstr(strrev(strtolower($this->URI_Filename())), '.', TRUE)) == 'php' ? TRUE : FALSE;
 
     }
 
@@ -342,35 +404,23 @@ class PHP_Webserver_Router
 
         $this->init();
 
-        if (preg_match('/\.(.*?)$/', $this->request_uri)) {
+        if ($this->URIhasPHP()) {
 
-            $filename = $this->request_uri;
+            if ($this->mvc_enabled == TRUE) {
 
-            if (($found = strstr($this->request_uri, "?", TRUE)) != FALSE) {
-
-                $filename = $found;
-
-            }
-
-            if (strrev(strstr(strrev($filename), '.', TRUE)) == 'php') {
-
-                $this->indexPath = $filename;
-
-                return $this->bootstrap();
+                return FALSE;
 
             } else {
 
-                $this->process_request();
+                $this->indexPath = $this->URI_Filename() !== FALSE ? $this->URI_Filename() : $this->URI_no_query();
+
+                return $this->bootstrap();
 
             }
 
-        } else {
-
-            return $this->bootstrap();
-
         }
 
-        exit;
+        return $this->bootstrap();
 
     }
 
@@ -437,9 +487,9 @@ class PHP_Webserver_Router
 
         foreach ($s as $k => $v) {
 
-            $split = explode('=>', $v);
-            $new_key = trim(preg_replace('/\s+/', '', str_replace(array("   '", "'", " ", "	", "   ", '&nbsp;'), "", $split[0])));
-            $new_val = trim(str_replace(array("   '", "'"), "", $split[1]));
+            $uri_path = explode('=>', $v);
+            $new_key = trim(preg_replace('/\s+/', '', str_replace(array("   '", "'", " ", "	", "   ", '&nbsp;'), "", $uri_path[0])));
+            $new_val = trim(str_replace(array("   '", "'"), "", $uri_path[1]));
 
             $tmp_arr[$new_key] = $new_val;
 

@@ -11,16 +11,6 @@ error_reporting(E_ALL);
 $php_web_server = new PHP_Webserver_Router();
 
 /************************************************
- * Add rewrite Rules
- ***********************************************/
-
-/************************************************
- * Drupal 8 - rule for Theme/Module Installation
- ***********************************************/
-$php_web_server->rewrite_rule('core\/authorize.php\/', '');
-$php_web_server->rewrite_rule('core\/install.php\/', '');
-
-/************************************************
  * Uncomment to Disable http output in console:
  ***********************************************/
 //$php_web_server->log_enable = FALSE;
