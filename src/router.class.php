@@ -1,8 +1,26 @@
 <?php
+$headers = array('Accept', 'Accept-CH', 'Accept-Charset', 'Accept-Datetime', 'Accept-Encoding', 'Accept-Ext', 'Accept-Features', 'Accept-Language', 'Accept-Params', 'Accept-Ranges',
+    'Access-Control-Allow-Credentials', 'Access-Control-Allow-Headers', 'Access-Control-Allow-Methods', 'Access-Control-Allow-Origin', 'Access-Control-Expose-Headers',
+    'Access-Control-Max-Age', 'Access-Control-Request-Headers', 'Access-Control-Request-Method', 'Age', 'Allow', 'Alternates', 'Authentication-Info', 'Authorization', 'C-Ext',
+    'C-Man', 'C-Opt', 'C-PEP', 'C-PEP-Info', 'CONNECT', 'Cache-Control', 'Compliance', 'Connection', 'Content-Base', 'Content-Disposition', 'Content-Encoding', 'Content-ID',
+    'Content-Language', 'Content-Length', 'Content-Location', 'Content-MD5', 'Content-Range', 'Content-Script-Type', 'Content-Security-Policy', 'Content-Style-Type',
+    'Content-Transfer-Encoding', 'Content-Type', 'Content-Version', 'Cookie', 'Cost', 'DAV', 'DELETE', 'DNT', 'DPR', 'Date', 'Default-Style', 'Delta-Base', 'Depth', 'Derived-From',
+    'Destination', 'Differential-ID', 'Digest', 'ETag', 'Expect', 'Expires', 'Ext', 'From', 'GET', 'GetProfile', 'HEAD', 'HTTP-date', 'Host', 'IM', 'If', 'If-Match',
+    'If-Modified-Since', 'If-None-Match', 'If-Range', 'If-Unmodified-Since', 'Keep-Alive', 'Label', 'Last-Event-ID', 'Last-Modified', 'Link', 'Location', 'Lock-Token',
+    'MIME-Version', 'Man', 'Max-Forwards', 'Media-Range', 'Message-ID', 'Meter', 'Negotiate', 'Non-Compliance', 'OPTION', 'OPTIONS', 'OWS', 'Opt', 'Optional', 'Ordering-Type',
+    'Origin', 'Overwrite', 'P3P', 'PEP', 'PICS-Label', 'POST', 'PUT', 'Pep-Info', 'Permanent', 'Position', 'Pragma', 'ProfileObject', 'Protocol', 'Protocol-Query', 'Protocol-Request',
+    'Proxy-Authenticate', 'Proxy-Authentication-Info', 'Proxy-Authorization', 'Proxy-Features', 'Proxy-Instruction', 'Public', 'RWS', 'Range', 'Referer', 'Refresh', 'Resolution-Hint',
+    'Resolver-Location', 'Retry-After', 'Safe', 'Sec-Websocket-Extensions', 'Sec-Websocket-Key', 'Sec-Websocket-Origin', 'Sec-Websocket-Protocol', 'Sec-Websocket-Version',
+    'Security-Scheme', 'Server', 'Set-Cookie', 'Set-Cookie2', 'SetProfile', 'SoapAction', 'Status', 'Status-URI', 'Strict-Transport-Security', 'SubOK', 'Subst', 'Surrogate-Capability',
+    'Surrogate-Control', 'TCN', 'TE', 'TRACE', 'Timeout', 'Title', 'Trailer', 'Transfer-Encoding', 'UA-Color', 'UA-Media', 'UA-Pixels', 'UA-Resolution', 'UA-Windowpixels', 'URI',
+    'Upgrade', 'User-Agent', 'Variant-Vary', 'Vary', 'Version', 'Via', 'Viewport-Width', 'WWW-Authenticate', 'Want-Digest', 'Warning', 'Width', 'X-Content-Duration',
+    'X-Content-Security-Policy', 'X-Content-Type-Options', 'X-CustomHeader', 'X-DNSPrefetch-Control', 'X-Forwarded-For', 'X-Forwarded-Port', 'X-Forwarded-Proto', 'X-Frame-Options',
+    'X-Modified', 'X-OTHER', 'X-PING', 'X-PINGOTHER', 'X-Powered-By', 'X-Requested-With', 'X-Token');
+header('Time-Zone: ' . @date_default_timezone_get());
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Expose-Headers: X-Token');
-header('Access-Control-Allow-Methods: POST, GET, OPTIONS, PUT, DELETE, CUSTOMREQUEST, REQUEST');
-header('Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Access-Control-Allow-Origin, X-Token, Authorization');
+header('Access-Control-Expose-Headers: ' . implode(',', $headers));
+header('Access-Control-Allow-Methods: CONNECT, CUSTOMREQUEST, DEBUG, DELETE, DONE, GET, HEAD, HTTP, HTTP/0.9, HTTP/1.0, HTTP/1.1, HTTP/2, OPTIONS, ORIGIN, ORIGINS, PATCH, POST, PUT, QUIC, REST, REQUEST, SESSION, SHOULD, SPDY, TRACE, TRACK');
+header('Access-Control-Allow-Headers: ' . implode(',', $headers));
 
 class PHP_Webserver_Router
 {
@@ -16,12 +34,6 @@ class PHP_Webserver_Router
     private $if_modified_since = "";
     private $file_length = "";
 
-    /**
-     * GZIP Compression
-     */
-    private $gzip = false;
-    private $gzip_types = array('x-gzip', 'gzip');
-    private $gzip_encoding = "";
 
     var $log_enable = TRUE;
 
@@ -58,37 +70,7 @@ class PHP_Webserver_Router
         $this->request_uri = \filter_input(\INPUT_SERVER, 'REQUEST_URI', \FILTER_SANITIZE_ENCODED);
         $this->request_uri = preg_replace('([/\\\]+)', '/', urldecode($this->request_uri));
 
-        /**
-         * Check if browser accepts gzip
-         */
-        if (isset($_SERVER['HTTP_ACCEPT_ENCODING'])) {
-
-            $list_encoding = explode(',', $_SERVER['HTTP_ACCEPT_ENCODING']);
-
-            if (count($list_encoding)) {
-
-                foreach ($list_encoding as $encoding_type) {
-
-                    if (($encoding = array_search(trim(strtolower($encoding_type)), $this->gzip_types)) !== FALSE) {
-
-                        $this->gzip = true;
-                        $this->gzip_encoding = $this->gzip_types[$encoding];
-                        break;
-
-                    }
-
-                }
-
-            }
-
-        }
-
-        /**
-         * Start Rewrite Engine
-         */
-        $this->rewrite_engine();
-
-        $this->physical_file = $_SERVER['SCRIPT_FILENAME'];
+        $this->physical_file = preg_replace('([/\\\]+)', '/', $_SERVER['SCRIPT_FILENAME']);
         $this->extension = strrev(strstr(strrev($this->physical_file), '.', TRUE));
 
         $this->last_modified = time();
@@ -105,51 +87,6 @@ class PHP_Webserver_Router
 
         $this->if_modified_since = (isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) ? $_SERVER['HTTP_IF_MODIFIED_SINCE'] : false);
         $this->eTagHeader = (isset($_SERVER['HTTP_IF_NONE_MATCH']) ? trim($_SERVER['HTTP_IF_NONE_MATCH']) : false);
-
-    }
-
-    /**
-     * Add a rule match and a replace for it
-     * @param string $url_match
-     * @param string $rewrite
-     */
-    function rewrite_rule($url_match = "", $rewrite = "")
-    {
-
-        if (strlen($url_match)) {
-
-            $this->rules[] = array("url_match" => $url_match, "rewrite" => $rewrite);
-
-        }
-
-    }
-
-    /**
-     * Rewrite your rules - EXPERIMENTAL
-     * @param bool $on
-     */
-    private function rewrite_engine($on = true)
-    {
-
-        if ($on) {
-
-            foreach ($this->rules as $k => $rule) {
-
-                if (preg_match('/' . $rule['url_match'] . '/', $this->request_uri, $match)) {
-
-                    if (count($match)) {
-
-                        header('Location: ' . preg_replace('/' . $rule['url_match'] . '/', $rule['rewrite'], $this->request_uri), true);
-
-                        exit();
-
-                    }
-
-                }
-
-            }
-
-        }
 
     }
 
@@ -226,7 +163,33 @@ class PHP_Webserver_Router
     }
 
     /**
-     * Serve Cached Files
+     * Retrieve the mime type of a file
+     * @param string $filename
+     * @return mixed|string
+     */
+    private function get_mime_type($filename = "")
+    {
+
+        $mime_type_db = $this->retrieve_mime_types();
+
+        if (strlen($filename) == 0) {
+
+            $mime_type = isset($mime_type_db[$this->extension]) ? $mime_type_db[$this->extension] : mime_content_type($this->physical_file);
+
+        } else {
+
+            $extension = strrev(strstr(strrev($filename), '.', TRUE));
+            $mime_type = isset($mime_type_db[$extension]) ? $mime_type_db[$extension] : mime_content_type($filename);
+
+        }
+
+
+        return $mime_type;
+
+    }
+
+    /**
+     * Serve CACHED | RAW Files
      */
     function process_request()
     {
@@ -243,7 +206,7 @@ class PHP_Webserver_Router
         } else {
 
             header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $this->last_modified) . ' GMT');
-            header('Etag: ' . $this->eTag);
+            header('ETag: ' . $this->eTag);
             header('Cache-Control: public');
 
             if (@strtotime($_SERVER['HTTP_IF_MODIFIED_SINCE']) == $this->last_modified || $this->eTagHeader == $this->eTag) {
@@ -253,35 +216,13 @@ class PHP_Webserver_Router
 
             } else {
 
-                $mime_type_db = $this->retrieve_mime_types();
-                $mime_type = isset($mime_type_db[$this->extension]) ? $mime_type_db[$this->extension] : mime_content_type($this->physical_file);
+                $mime_type = $this->get_mime_type();
 
                 header('Content-Type: ' . $mime_type);
+                header('Content-Length: ' . $this->file_length);
+                @readfile($this->physical_file);
 
-                if ($this->gzip) {
-
-                    ob_start('ob_gzhandler');
-                    ob_implicit_flush(0);
-
-                    $fileData = file_get_contents($this->physical_file);
-
-                    echo gzcompress($fileData);
-
-                    $contents = ob_get_contents();
-
-                    ob_end_clean();
-
-                    header('Content-Encoding: ' . $this->gzip_encoding);
-                    print("\x1f\x8b\x08\x00\x00\x00\x00\x00");
-                    echo $contents;
-
-                } else {
-
-                    header('Content-Length: ' . $this->file_length);
-                    @readfile($this->physical_file);
-
-                }
-
+                exit;
 
             }
 
@@ -289,7 +230,7 @@ class PHP_Webserver_Router
 
         $this->log_output();
 
-        exit(0);
+        exit;
 
     }
 
@@ -376,7 +317,6 @@ class PHP_Webserver_Router
 
         } else {
 
-
             if (file_exists($uri_filepath) && !is_dir($uri_filepath)) {
 
                 $this->process_request();
@@ -444,6 +384,10 @@ class PHP_Webserver_Router
 
     }
 
+    /**
+     * Check if the requested URI is a PHP script
+     * @return bool
+     */
     private function URIhasPHP()
     {
 
