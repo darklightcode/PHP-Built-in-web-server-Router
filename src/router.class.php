@@ -29,8 +29,6 @@ class PHP_Webserver_Router
     private $request_uri = "";
     private $physical_file = "";
     private $extension = "";
-    private $extension_last = "";
-    private $has_inline_extension = "";
     private $eTag = "";
     private $eTagHeader = "";
     private $last_modified = "";
@@ -60,18 +58,6 @@ class PHP_Webserver_Router
     private function init()
     {
 
-        //$_SERVER['SERVER_NAME'] = "localhost";
-
-
-        //$_SERVER['PHP_SELF'] = $index_file_relative;
-
-        /*$_SERVER['REQUEST_URI'] = $_SERVER['REQUEST_URI'] .'/';
-        echo '<pre>';
-                print_r($_SERVER);
-
-                die();*/
-
-
         set_error_handler(function ($error_type) {
 
             switch ($error_type) {
@@ -82,40 +68,11 @@ class PHP_Webserver_Router
 
         }, E_ALL);
 
-        /**
-         * Fix SCRIPT_FILENAME
-         */
-        if (substr_count($_SERVER['SCRIPT_FILENAME'], $_SERVER['DOCUMENT_ROOT']) > 0) {
-            $_SERVER['SCRIPT_FILENAME'] = trim(str_replace($_SERVER['DOCUMENT_ROOT'], '', $_SERVER['SCRIPT_FILENAME']), '/');
-        }
-        //echo $_SERVER['SCRIPT_FILENAME'].'<br />';
-        //echo $_SERVER['DOCUMENT_ROOT'].'<br />';
-
         $this->request_uri = \filter_input(\INPUT_SERVER, 'REQUEST_URI', \FILTER_SANITIZE_ENCODED);
         $this->request_uri = preg_replace('([/\\\]+)', '/', urldecode($this->request_uri));
 
         $this->physical_file = preg_replace('([/\\\]+)', '/', $_SERVER['SCRIPT_FILENAME']);
-
-        if( ($file = $this->URI_validFolder()) !== FALSE){
-            $this->physical_file = $file;
-        }
-
         $this->extension = strrev(strstr(strrev($this->physical_file), '.', TRUE));
-        $this->extension_last = $this->URI_extension();
-        $this->has_inline_extension = strrev(strstr(strrev($this->URI_Filename()), '.', TRUE)) !== FALSE ? TRUE : FALSE;
-
-        /*echo '<pre>';
-        print_r($this->URI_validFolder());
-        echo '<Br />';
-        print_r($_SERVER);
-        echo '</pre>';
-        echo '<br />' . $this->physical_file . '<br />';
-        echo $this->request_uri . '<br />';
-        echo $this->extension . '<br />';
-        echo $this->extension_last . '<br />';
-        echo $this->URI_Filename() . '<br />';
-
-        die();*/
 
         $this->last_modified = time();
         $this->eTag = md5($this->last_modified);
@@ -240,20 +197,9 @@ class PHP_Webserver_Router
 
         $uri_path = $this->URI_no_query();
 
-        $fileIsNotPresent = !file_exists($_SERVER['DOCUMENT_ROOT'] . '/' . urldecode(substr($uri_path, 1)));
+        if (!file_exists($_SERVER['DOCUMENT_ROOT'] . '/' . urldecode(substr($uri_path, 1)))) {
 
-        /**
-         * Check if file exists so we can serve it and
-         * Double check the request path for falsies e.g.
-         *
-         *      http://domain.com/this/is/a/valid/path.extension/but/this/is/the/real/request/file.css
-         *
-         *      The path http://domain.com/this/is/a/valid/path.extension is the falsie it does not exist but it requests for
-         *      /but/this/is/the/real/request/file.css , therefore this must be the SCRIPT_FILENAME
-         *      and since we cannot know the logic behind that URL we follow the last path for a valid file so we can return
-         *      the correct Content-Type and Content-Length
-         */
-        if ($fileIsNotPresent && !file_exists($this->URI_validFolder())) {
+            $this->favicon();
 
             header('HTTP/1.1 404 Not Found');
             $this->http_status = 404;
@@ -272,9 +218,6 @@ class PHP_Webserver_Router
             header('Content-Type: ' . $mime_type);
             header('Content-Length: ' . $this->file_length);
 
-            /**
-             * Serve Cached files if available or else serve Raw Files
-             */
             if (@strtotime($_SERVER['HTTP_IF_MODIFIED_SINCE']) == $this->last_modified || $this->eTagHeader == $this->eTag) {
 
                 header('HTTP/1.1 304 Not Modified');
@@ -293,52 +236,6 @@ class PHP_Webserver_Router
         $this->log_output();
 
         exit;
-
-    }
-
-    /**
-     * Search and return valid folder from URI
-     */
-    function URI_validFolder()
-    {
-
-        $uri = $this->URI_no_query();
-        $exp = explode('/', $uri);
-
-        $exp = array_filter($exp, function ($k) {
-            return !in_array($k, array("", " ", "..", "."));
-        });
-
-        $tmp = array();
-
-        foreach ($exp as $k => $item) {
-
-            $tmp[$k] = array();
-
-            for ($i = $k; $i < count($exp); $i++) {
-                $tmp[$k][] = $exp[$i];
-            }
-
-            array_push($tmp[$k], $exp[count($exp)]);
-
-            $tmp[$k] = implode("/", $tmp[$k]);
-
-        }
-        $tmp = array_filter($tmp, function ($k) {
-            return strlen($k);
-        });
-
-        foreach ($tmp as $item) {
-
-            if (file_exists($_SERVER['DOCUMENT_ROOT'] . '/' . $item)) {
-
-                return $_SERVER['DOCUMENT_ROOT'] . '/' . $item;
-
-            }
-
-        }
-
-        return FALSE;
 
     }
 
@@ -416,8 +313,17 @@ class PHP_Webserver_Router
         $load_index = $_SERVER['DOCUMENT_ROOT'] . "/" . $this->indexPath;
         $load_index = preg_replace('([/\\\]+)', '/', trim($load_index));
 
+        /**
+         * Fix server globals
+         */
         $_SERVER['SCRIPT_NAME'] = DIRECTORY_SEPARATOR . $this->indexPath;
-
+        $_SERVER['PHP_SELF'] = DIRECTORY_SEPARATOR . $this->indexPath;
+        $_SERVER['SCRIPT_FILENAME'] = $_SERVER['DOCUMENT_ROOT'] . DIRECTORY_SEPARATOR . $this->indexPath;
+        /*
+        echo '<pre>';
+        print_r($_SERVER);
+        die();
+        */
         if (!file_exists($load_index)) {
 
             $not_found_message = "Your script file doesn't exist at " . $load_index;
@@ -427,7 +333,7 @@ class PHP_Webserver_Router
 
         } else {
 
-            if (file_exists($uri_filepath) && !is_dir($uri_filepath) ) {
+            if (file_exists($uri_filepath) && !is_dir($uri_filepath)) {
 
                 $this->process_request();
 
@@ -501,28 +407,7 @@ class PHP_Webserver_Router
     private function URIhasPHP()
     {
 
-        return $this->URI_extension() == 'php' ? TRUE : FALSE;
-
-    }
-
-    function URI_extension()
-    {
-
-        $uri = $this->URI_no_query();
-
-        /**
-         * Retrieve last segment
-         */
-        if (strstr($uri, '/', TRUE) !== FALSE) {
-            $uri_split = explode('/', $uri);
-            $uri = $uri_split[count($uri_split) - 1];
-        }
-
-        if (strstr($uri, '.', TRUE) !== FALSE) {
-            return strrev(strstr(strrev(strtolower($uri)), '.', TRUE));
-        }
-
-        return FALSE;
+        return strrev(strstr(strrev(strtolower($this->URI_Filename())), '.', TRUE)) == 'php' ? TRUE : FALSE;
 
     }
 
