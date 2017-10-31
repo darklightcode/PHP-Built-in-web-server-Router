@@ -319,11 +319,7 @@ class PHP_Webserver_Router
         $_SERVER['SCRIPT_NAME'] = DIRECTORY_SEPARATOR . $this->indexPath;
         $_SERVER['PHP_SELF'] = DIRECTORY_SEPARATOR . $this->indexPath;
         $_SERVER['SCRIPT_FILENAME'] = $_SERVER['DOCUMENT_ROOT'] . DIRECTORY_SEPARATOR . $this->indexPath;
-        /*
-        echo '<pre>';
-        print_r($_SERVER);
-        die();
-        */
+
         if (!file_exists($load_index)) {
 
             $not_found_message = "Your script file doesn't exist at " . $load_index;
@@ -340,6 +336,8 @@ class PHP_Webserver_Router
                 exit();
 
             } else {
+
+                $this->favicon();
 
                 return include($_SERVER['DOCUMENT_ROOT'] . "/$this->indexPath");
 
