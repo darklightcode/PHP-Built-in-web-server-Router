@@ -69,9 +69,9 @@ class PHP_Webserver_Router
         }, E_ALL);
 
         $this->request_uri = \filter_input(\INPUT_SERVER, 'REQUEST_URI', \FILTER_SANITIZE_ENCODED);
-        $this->request_uri = preg_replace('([/\\\]+)', '/', urldecode($this->request_uri));
+        $this->request_uri = $this->format_unix(urldecode($this->request_uri));
 
-        $this->physical_file = preg_replace('([/\\\]+)', '/', $_SERVER['SCRIPT_FILENAME']);
+        $this->physical_file = $this->format_unix($_SERVER['SCRIPT_FILENAME']);
         $this->extension = strrev(strstr(strrev($this->physical_file), '.', TRUE));
 
         $this->last_modified = time();
@@ -240,6 +240,16 @@ class PHP_Webserver_Router
     }
 
     /**
+     * Format to UNIX path
+     * @param string $str
+     * @return mixed
+     */
+    private function format_unix($str = "")
+    {
+        return preg_replace('([/\\\]+)', '/', $str);
+    }
+
+    /**
      * Serve your application
      */
     function bootstrap()
@@ -257,6 +267,12 @@ class PHP_Webserver_Router
         }
 
         chdir($_SERVER['DOCUMENT_ROOT']);
+        
+        if (ini_get('auto_prepend_file') && !in_array(realpath(ini_get('auto_prepend_file')), get_included_files(), true)) {
+
+            include(ini_get('auto_prepend_file'));
+
+        }
 
         $uri_path = $this->URI_no_query();
         $uri_filepath = $_SERVER['DOCUMENT_ROOT'] . '/' . urldecode(substr($uri_path, 1));
@@ -311,14 +327,14 @@ class PHP_Webserver_Router
         }
 
         $load_index = $_SERVER['DOCUMENT_ROOT'] . "/" . $this->indexPath;
-        $load_index = preg_replace('([/\\\]+)', '/', trim($load_index));
+        $load_index = $this->format_unix(trim($load_index));
 
         /**
          * Fix server globals
          */
-        $_SERVER['SCRIPT_NAME'] = DIRECTORY_SEPARATOR . $this->indexPath;
-        $_SERVER['PHP_SELF'] = DIRECTORY_SEPARATOR . $this->indexPath;
-        $_SERVER['SCRIPT_FILENAME'] = $_SERVER['DOCUMENT_ROOT'] . DIRECTORY_SEPARATOR . $this->indexPath;
+        $_SERVER['SCRIPT_NAME'] = $this->format_unix(DIRECTORY_SEPARATOR . $this->indexPath);
+        $_SERVER['PHP_SELF'] = $this->format_unix(DIRECTORY_SEPARATOR . $this->indexPath);
+        $_SERVER['SCRIPT_FILENAME'] = $this->format_unix($_SERVER['DOCUMENT_ROOT'] . DIRECTORY_SEPARATOR . $this->indexPath);
 
         if (!file_exists($load_index)) {
 
