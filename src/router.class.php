@@ -68,9 +68,23 @@ class PHP_Webserver_Router
 
         }, E_ALL);
 
+        set_include_path(get_include_path().':'.__DIR__);
+
+        if (ini_get('auto_prepend_file') && !in_array(realpath(ini_get('auto_prepend_file')), get_included_files(), true)) {
+
+            include(ini_get('auto_prepend_file'));
+
+        }
+
+
         $this->request_uri = \filter_input(\INPUT_SERVER, 'REQUEST_URI', \FILTER_SANITIZE_ENCODED);
         $this->request_uri = $this->format_unix(urldecode($this->request_uri));
 
+        //$_SERVER['PHP_SELF'] = $this->format_path_dir($this->URI_no_query());
+
+        /*echo '<pre>';
+        print_r($_SERVER);
+        die();*/
         $this->physical_file = $this->format_unix($_SERVER['SCRIPT_FILENAME']);
         $this->extension = strrev(strstr(strrev($this->physical_file), '.', TRUE));
 
@@ -240,6 +254,24 @@ class PHP_Webserver_Router
     }
 
     /**
+     * Get Extension
+     * @param string $str
+     * @return string
+     */
+    private function getExt($str = "")
+    {
+
+        $str = strtolower(trim($str));
+        if (($no_q = strstr($str, '?', true)) !== FALSE) {
+            $str = $no_q;
+        }
+
+        return strstr($str, '.') === FALSE ? "" : strrev(strstr(strrev($str), '.', true));
+
+
+    }
+
+    /**
      * Format to UNIX path
      * @param string $str
      * @return mixed
@@ -247,6 +279,49 @@ class PHP_Webserver_Router
     private function format_unix($str = "")
     {
         return preg_replace('([/\\\]+)', '/', $str);
+    }
+
+    private function format_path_dir($str = "")
+    {
+
+        $str = $this->format_unix(trim($str));
+
+        if (trim($str) == '/' || strlen($str) == 0) {
+            return '/';
+        }
+
+        if (!strlen($this->getExt($str))) {
+
+            /**
+             * A path without extension or with / must be checked if it is a valid directory
+             */
+            if (is_dir($this->format_unix($_SERVER['DOCUMENT_ROOT'] . '/' . $str . '/')) || is_dir($this->format_unix($str))) {
+
+                $str = $str . '/';
+
+            } else {
+
+                $str = dirname($str) . '/';
+
+            }
+
+        } else {
+
+            $str = dirname($str) . '/';
+
+        }
+
+        $str = $this->format_unix('/' . $str);
+        $drf = $this->format_unix(strtolower($_SERVER['DOCUMENT_ROOT']));
+
+        if (DIRECTORY_SEPARATOR != '/' && substr(strtolower($str), 1, strlen($drf)) == $drf) {
+
+            $str = ltrim($str, '/');
+
+        }
+
+        return $str;
+
     }
 
     /**
@@ -267,7 +342,7 @@ class PHP_Webserver_Router
         }
 
         chdir($_SERVER['DOCUMENT_ROOT']);
-        
+
         if (ini_get('auto_prepend_file') && !in_array(realpath(ini_get('auto_prepend_file')), get_included_files(), true)) {
 
             include(ini_get('auto_prepend_file'));
@@ -332,9 +407,27 @@ class PHP_Webserver_Router
         /**
          * Fix server globals
          */
+/*
+    [SCRIPT_NAME] => /wp-admin/
+    [SCRIPT_FILENAME] => D:/Projects/Workspace/home/Github/PHP-Built-in-web-server-Router/wordpress48/wp-admin/
+    [PATH_INFO] => /
+    [PHP_SELF] => /wp-admin/
+
+
+    [SCRIPT_NAME] => /index.php
+    [SCRIPT_FILENAME] => D:/Projects/Workspace/home/Github/PHP-Built-in-web-server-Router/wordpress48/index.php
+    [PATH_INFO] => /
+    [PHP_SELF] => /index.php
+
+
+*/
         $_SERVER['SCRIPT_NAME'] = $this->format_unix(DIRECTORY_SEPARATOR . $this->indexPath);
-        $_SERVER['PHP_SELF'] = $this->format_unix(DIRECTORY_SEPARATOR . $this->indexPath);
+        $_SERVER['PHP_SELF'] = $this->format_unix($uri_path);
         $_SERVER['SCRIPT_FILENAME'] = $this->format_unix($_SERVER['DOCUMENT_ROOT'] . DIRECTORY_SEPARATOR . $this->indexPath);
+
+        /*echo '<pre>';
+        print_r($_SERVER);
+        die();*/
 
         if (!file_exists($load_index)) {
 
@@ -441,6 +534,11 @@ class PHP_Webserver_Router
                 return FALSE;
 
             } else {
+
+                /**
+                 * Fix for 404 errors
+                 */
+                header("Content-Length: -1");
 
                 $this->indexPath = $this->URI_Filename() !== FALSE ? $this->URI_Filename() : $this->URI_no_query();
 
