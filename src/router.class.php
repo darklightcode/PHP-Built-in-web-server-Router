@@ -68,7 +68,10 @@ class PHP_Webserver_Router
 
         }, E_ALL);
 
-        set_include_path(get_include_path().':'.__DIR__);
+        /**
+         * Fixed cross-os include path
+         */
+        set_include_path(get_include_path() . (DIRECTORY_SEPARATOR == '/' ? ':' : ';') . $_SERVER['DOCUMENT_ROOT']);
 
         if (ini_get('auto_prepend_file') && !in_array(realpath(ini_get('auto_prepend_file')), get_included_files(), true)) {
 
@@ -76,6 +79,7 @@ class PHP_Webserver_Router
 
         }
 
+        $this->refresh_paths();
 
         $this->request_uri = \filter_input(\INPUT_SERVER, 'REQUEST_URI', \FILTER_SANITIZE_ENCODED);
         $this->request_uri = $this->format_unix(urldecode($this->request_uri));
@@ -102,6 +106,21 @@ class PHP_Webserver_Router
 
         $this->if_modified_since = (isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) ? $_SERVER['HTTP_IF_MODIFIED_SINCE'] : false);
         $this->eTagHeader = (isset($_SERVER['HTTP_IF_NONE_MATCH']) ? trim($_SERVER['HTTP_IF_NONE_MATCH']) : false);
+
+    }
+
+    /**
+     * Format paths
+     */
+    function refresh_paths()
+    {
+
+        $formatVarsToUnix = array('DOCUMENT_ROOT', 'SCRIPT_FILENAME', 'SCRIPT_NAME', 'PHP_SELF');
+        foreach ($formatVarsToUnix as $var) {
+            if (isset($_SERVER[$var])) {
+                $_SERVER[$var] = preg_replace('([/\\\]+)', '/', $_SERVER[$var]);
+            }
+        }
 
     }
 
@@ -133,7 +152,14 @@ class PHP_Webserver_Router
 
         }
 
-        if (trim(strtolower($last_segment), '/') == 'favicon.ico') {
+        $favicon_urls = array(
+            "favicon.ico",
+            "apple-touch-icon-120x120-precomposed.png",
+            "apple-touch-icon-precomposed.png",
+            "apple-touch-icon.png"
+        );
+
+        if (in_array(trim(strtolower($last_segment), '/'), $favicon_urls)) {
 
             $boom = explode('.', phpversion());
             $version = $boom[0];
@@ -352,77 +378,14 @@ class PHP_Webserver_Router
         $uri_path = $this->URI_no_query();
         $uri_filepath = $_SERVER['DOCUMENT_ROOT'] . '/' . urldecode(substr($uri_path, 1));
 
-        if ($this->mvc_enabled == FALSE) {
-
-            if (!file_exists($uri_filepath) && !is_dir($uri_filepath)) {
-
-                header('HTTP/1.1 404 Not Found');
-                $this->log_output();
-                die();
-
-            } else {
-
-                $new_dir = $uri_filepath;
-
-                if (is_dir($new_dir)) {
-
-                    $search_files = scandir($new_dir);
-
-                    $index_array = array("index.php", "index.html", "index.htm");
-
-                    $found_index = false;
-
-                    foreach ($index_array as $key => $index) {
-
-                        if (in_array($index, $search_files) && $found_index == false) {
-
-                            $found_index = true;
-                            $this->indexPath = $uri_path . "/" . $index;
-
-                        }
-
-                        if ($key == count($index_array) - 1 && !$found_index) {
-
-                            $html = "";
-                            foreach ($search_files as $files) {
-                                $html .= '<a href="' . rtrim($this->request_uri, '/') . '/' . $files . '" >' . $files . '</a><br />';
-                            }
-
-                            echo $html;
-                            die();
-
-                        }
-
-                    }
-
-                }
-
-            }
-
-        }
 
         $load_index = $_SERVER['DOCUMENT_ROOT'] . "/" . $this->indexPath;
         $load_index = $this->format_unix(trim($load_index));
 
-        /**
-         * Fix server globals
-         */
-/*
-    [SCRIPT_NAME] => /wp-admin/
-    [SCRIPT_FILENAME] => D:/Projects/Workspace/home/Github/PHP-Built-in-web-server-Router/wordpress48/wp-admin/
-    [PATH_INFO] => /
-    [PHP_SELF] => /wp-admin/
 
-
-    [SCRIPT_NAME] => /index.php
-    [SCRIPT_FILENAME] => D:/Projects/Workspace/home/Github/PHP-Built-in-web-server-Router/wordpress48/index.php
-    [PATH_INFO] => /
-    [PHP_SELF] => /index.php
-
-
-*/
         $_SERVER['SCRIPT_NAME'] = $this->format_unix(DIRECTORY_SEPARATOR . $this->indexPath);
         $_SERVER['PHP_SELF'] = $this->format_unix($uri_path);
+
         $_SERVER['SCRIPT_FILENAME'] = $this->format_unix($_SERVER['DOCUMENT_ROOT'] . DIRECTORY_SEPARATOR . $this->indexPath);
 
         /*echo '<pre>';
@@ -439,16 +402,19 @@ class PHP_Webserver_Router
         } else {
 
             if (file_exists($uri_filepath) && !is_dir($uri_filepath)) {
-
                 $this->process_request();
 
                 exit();
 
             } else {
 
+                /*echo '<pre>';
+                print_r($_SERVER);
+                die();*/
                 $this->favicon();
 
-                return include($_SERVER['DOCUMENT_ROOT'] . "/$this->indexPath");
+                return FALSE;
+                //return include($_SERVER['DOCUMENT_ROOT'] . "/$this->indexPath");
 
             }
 
@@ -526,6 +492,11 @@ class PHP_Webserver_Router
     {
 
         $this->init();
+/*
+        echo '<pre>';
+        //phpinfo();
+        print_r($_SERVER);
+        die();*/
 
         if ($this->URIhasPHP()) {
 
