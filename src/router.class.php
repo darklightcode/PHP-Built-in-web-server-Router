@@ -47,6 +47,8 @@ class PHP_Webserver_Router
     var $php_warning = 0;
     var $php_notice = 0;
 
+    var $script_filename = "";
+
     function __construct()
     {
 
@@ -80,6 +82,7 @@ class PHP_Webserver_Router
         }
 
         $this->refresh_paths();
+        $this->script_filename = $_SERVER['SCRIPT_FILENAME'];
 
         $this->request_uri = \filter_input(\INPUT_SERVER, 'REQUEST_URI', \FILTER_SANITIZE_ENCODED);
         $this->request_uri = $this->format_unix(urldecode($this->request_uri));
@@ -401,9 +404,26 @@ class PHP_Webserver_Router
 
                 $this->favicon();
 
-                //header("Content-Length: 0");
-                //return false;
-                return include($_SERVER['DOCUMENT_ROOT'] . "/$this->indexPath");
+                //echo $this->script_filename.'<br />'.$_SERVER['SCRIPT_FILENAME'];
+                //die();
+
+                if( in_array($this->getExt($this->script_filename), array("","php")) ){
+
+                    //return include($_SERVER['SCRIPT_FILENAME']);
+                    return include($_SERVER['DOCUMENT_ROOT'] .'/' . $this->indexPath);
+
+                }else{
+
+                    return include($this->script_filename);
+
+                }
+
+                //$_SERVER['PHP_SELF'] = rtrim($this->format_unix($_SERVER['PHP_SELF']),'/') ;
+                //$_SERVER['PATH_INFO'] = $this->format_unix($uri_path);
+
+                //echo '<pre>';
+                //print_r($_SERVER);
+
 
             }
 
@@ -484,22 +504,7 @@ class PHP_Webserver_Router
 
         if ($this->URIhasPHP()) {
 
-            if ($this->mvc_enabled == TRUE) {
-
-                return FALSE;
-
-            } else {
-
-                /**
-                 * Fix for 404 errors
-                 */
-                header("Content-Length: -1");
-
-                $this->indexPath = $this->URI_Filename() !== FALSE ? $this->URI_Filename() : $this->URI_no_query();
-
-                return $this->bootstrap();
-
-            }
+            return FALSE;
 
         }
 

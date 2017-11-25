@@ -4,12 +4,12 @@
   "description": "A router library for your PHP Built-in Webserver.",
   "main": "index.js",
   "scripts": {
-    "start-default": "php -S 0.0.0.0:9000 src/router.php",
-    "start-codeigniter": "php -S 0.0.0.0:9001 -t ./codeigniter src/router.php",
-    "start-yii": "php -S 0.0.0.0:9002 -t ./yii/web src/router.php",
-    "start-wordpress": "php -S 0.0.0.0:9003 -t ./wordpress src/router.php",
-    "start-wordpress48": "php -S 0.0.0.0:9004 -t ./wordpress48 src/router.php",
-    "start-drupal7": "php -S 0.0.0.0:9005 -t ./drupal7 src/router.php",
+    "start-default": "php -d max_execution_time=280 -S 0.0.0.0:9000 src/router.php",
+    "start-codeigniter": "php -d max_execution_time=280 -S 0.0.0.0:9001 -t ./codeigniter src/router.php",
+    "start-yii": "php -d max_execution_time=280 -S 0.0.0.0:9002 -t ./yii/web src/router.php",
+    "start-wordpress": "php -d max_execution_time=280 -S 0.0.0.0:9003 -t ./wordpress src/router.php",
+    "start-wordpress48": "php -d max_execution_time=280 -S 0.0.0.0:9004 -t ./wordpress48 src/router.php",
+    "start-drupal7": "php -d max_execution_time=280 -S 0.0.0.0:9005 -t ./drupal7 src/router.php",
     "start-drupal8": "php -d max_execution_time=280 -S 0.0.0.0:9006 -t ./drupal8 src/router.php",
     "test-router-path": "node ./test/routerPath.js"
   },
