@@ -369,12 +369,6 @@ class PHP_Webserver_Router
 
         chdir($_SERVER['DOCUMENT_ROOT']);
 
-        if (ini_get('auto_prepend_file') && !in_array(realpath(ini_get('auto_prepend_file')), get_included_files(), true)) {
-
-            include(ini_get('auto_prepend_file'));
-
-        }
-
         $uri_path = $this->URI_no_query();
         $uri_filepath = $_SERVER['DOCUMENT_ROOT'] . '/' . urldecode(substr($uri_path, 1));
 
@@ -388,10 +382,6 @@ class PHP_Webserver_Router
 
         $_SERVER['SCRIPT_FILENAME'] = $this->format_unix($_SERVER['DOCUMENT_ROOT'] . DIRECTORY_SEPARATOR . $this->indexPath);
 
-        /*echo '<pre>';
-        print_r($_SERVER);
-        die();*/
-
         if (!file_exists($load_index)) {
 
             $not_found_message = "Your script file doesn't exist at " . $load_index;
@@ -402,19 +392,18 @@ class PHP_Webserver_Router
         } else {
 
             if (file_exists($uri_filepath) && !is_dir($uri_filepath)) {
+
                 $this->process_request();
 
                 exit();
 
             } else {
 
-                /*echo '<pre>';
-                print_r($_SERVER);
-                die();*/
                 $this->favicon();
 
-                return FALSE;
-                //return include($_SERVER['DOCUMENT_ROOT'] . "/$this->indexPath");
+                //header("Content-Length: 0");
+                //return false;
+                return include($_SERVER['DOCUMENT_ROOT'] . "/$this->indexPath");
 
             }
 
@@ -492,11 +481,6 @@ class PHP_Webserver_Router
     {
 
         $this->init();
-/*
-        echo '<pre>';
-        //phpinfo();
-        print_r($_SERVER);
-        die();*/
 
         if ($this->URIhasPHP()) {
 
