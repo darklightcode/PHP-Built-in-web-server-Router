@@ -1,5 +1,4 @@
 <?php
-error_reporting(E_ALL);
 $headers = array('Accept', 'Accept-CH', 'Accept-Charset', 'Accept-Datetime', 'Accept-Encoding', 'Accept-Ext', 'Accept-Features', 'Accept-Language', 'Accept-Params', 'Accept-Ranges',
     'Access-Control-Allow-Credentials', 'Access-Control-Allow-Headers', 'Access-Control-Allow-Methods', 'Access-Control-Allow-Origin', 'Access-Control-Expose-Headers',
     'Access-Control-Max-Age', 'Access-Control-Request-Headers', 'Access-Control-Request-Method', 'Age', 'Allow', 'Alternates', 'Authentication-Info', 'Authorization', 'C-Ext',
@@ -396,7 +395,7 @@ class PHP_Webserver_Router
         } else {
 
             if (file_exists($uri_filepath) && !is_dir($uri_filepath)) {
-            //if (is_file($uri_filepath)) {
+                //if (is_file($uri_filepath)) {
 
                 $this->process_request();
 
@@ -528,7 +527,7 @@ class PHP_Webserver_Router
          echo 'php self:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' . $php_self . '<br />';
          echo 'script name&nbsp;&nbsp;&nbsp;' . $script_name;*/
 
-        if( isset($_SERVER['HTTP_L'])){
+        if (isset($_SERVER['HTTP_L'])) {
             $_SERVER['HTTP_CACHE_CONTROL'] = $_SERVER['HTTP_L'];
             unset($_SERVER['HTTP_L']);
         }
@@ -538,7 +537,7 @@ class PHP_Webserver_Router
         if (!isset($_SERVER['PHP_INFO']) && substr($_SERVER['REQUEST_URI'], -1, 1) !== '/' && $this->getExt($_SERVER['REQUEST_URI']) == "") {
 
             $_SERVER['REQUEST_URI'] = $_SERVER['REQUEST_URI'] . '/';
-            $_SERVER['PHP_SELF'] =  $_SERVER['PHP_SELF'] .'/';
+            $_SERVER['PHP_SELF'] = $_SERVER['PHP_SELF'] . '/';
 
         }
 
@@ -552,10 +551,10 @@ class PHP_Webserver_Router
         $_SERVER['PATH_INFO'] = $path_info;
         //echo $_SERVER['SCRIPT_NAME'].'<br />';
 
-        $_SERVER['PHP_SELF'] = $_SERVER['SCRIPT_NAME'];
+        $_SERVER['PHP_SELF'] = $_SERVER['SCRIPT_NAME'] . $_SERVER['PATH_INFO'];
 
-        if( substr($_SERVER['PHP_SELF'], -1 , 1 ) == '/'){
-            $_SERVER['PHP_SELF'] = substr($_SERVER['PHP_SELF'],0,-1);
+        if (substr($_SERVER['PHP_SELF'], -1, 1) == '/') {
+            $_SERVER['PHP_SELF'] = substr($_SERVER['PHP_SELF'], 0, -1);
         }
 
     }
@@ -570,8 +569,9 @@ class PHP_Webserver_Router
         $this->fix_path_info();
         $this->init();
 
+        $falsy_ext = $this->getExt($this->URI_no_query());
 
-        if (in_array($this->getExt($this->URI_no_query()), array("", "php"))) {
+        if (in_array($falsy_ext, array("", "php"))) {
 
             /**
              * Drupal file uploads
@@ -581,18 +581,37 @@ class PHP_Webserver_Router
 
                 return FALSE;
 
-            }else{
+            } else {
 
                 /**
                  * Wordpress wp-admin
                  */
 
-                if( $this->getExt($this->URI_no_query()) == "" ){
+                if ($this->getExt($this->URI_no_query()) == "") {
 
                     /**
                      * Output hack fix
                      */
                     header("Content-Length: -1");
+
+                    return FALSE;
+
+                }
+
+            }
+
+        } else {
+
+            if (strlen(trim($falsy_ext))) {
+
+                /**
+                 * Check for PHP
+                 */
+                if (($e = strstr($falsy_ext, '/', TRUE)) !== FALSE) {
+                    $falsy_ext = $e;
+                }
+
+                if ($falsy_ext == 'php') {
 
                     return FALSE;
 
