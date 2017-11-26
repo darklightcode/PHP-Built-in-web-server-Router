@@ -489,7 +489,7 @@ class PHP_Webserver_Router
         if (($url_no_q = strstr($url, '?', true)) !== FALSE) {
             $url = $url_no_q;
         }
-        
+
         $path_info = isset($_SERVER['PHP_INFO']) ? $_SERVER['PHP_INFO'] : '/';
 
         if (($dot = strstr($url, '.')) !== FALSE) {
@@ -515,7 +515,12 @@ class PHP_Webserver_Router
 
         }
 
-        $_SERVER['ORIG_PHP_SELF'] = $_SERVER['PHP_SELF'];
+        if( !isset( $_SERVER['ORIG_PHP_SELF'])){
+            $_SERVER['ORIG_PHP_SELF'] = $_SERVER['PHP_SELF'];
+        }
+        if( !isset( $_SERVER['ORIG_PHP_SELF'])){
+            $_SERVER['ORIG_PATH_INFO'] = "";
+        }
         $_SERVER['ORIG_PATH_INFO'] = isset($_SERVER['PATH_INFO']) ? $_SERVER['PATH_INFO'] : "";
 
         $_SERVER['PATH_INFO'] = $path_info;
@@ -557,11 +562,8 @@ class PHP_Webserver_Router
                  */
 
                 if ($this->getExt($this->URI_no_query()) == "") {
-
-                    /**
-                     * Output hack fix
-                     */
-                    header("Content-Length: -1");
+                    
+                    header("Content-Length: ".$this->file_length);
 
                     return FALSE;
 
