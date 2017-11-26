@@ -87,11 +87,6 @@ class PHP_Webserver_Router
         $this->request_uri = \filter_input(\INPUT_SERVER, 'REQUEST_URI', \FILTER_SANITIZE_ENCODED);
         $this->request_uri = $this->format_unix(urldecode($this->request_uri));
 
-        //$_SERVER['PHP_SELF'] = $this->format_path_dir($this->URI_no_query());
-
-        /*echo '<pre>';
-        print_r($_SERVER);
-        die();*/
         $this->physical_file = $this->format_unix($_SERVER['SCRIPT_FILENAME']);
         $this->extension = strrev(strstr(strrev($this->physical_file), '.', TRUE));
 
@@ -405,12 +400,8 @@ class PHP_Webserver_Router
 
                 $this->favicon();
 
-                //echo $this->script_filename.'<br />'.$_SERVER['SCRIPT_FILENAME'];
-                //die();
-
                 if (in_array($this->getExt($this->script_filename), array("", "php"))) {
 
-                    //return include($_SERVER['SCRIPT_FILENAME']);
                     return include($_SERVER['DOCUMENT_ROOT'] . '/' . $this->indexPath);
 
                 } else {
@@ -418,13 +409,6 @@ class PHP_Webserver_Router
                     return include($this->script_filename);
 
                 }
-
-                //$_SERVER['PHP_SELF'] = rtrim($this->format_unix($_SERVER['PHP_SELF']),'/') ;
-                //$_SERVER['PATH_INFO'] = $this->format_unix($uri_path);
-
-                //echo '<pre>';
-                //print_r($_SERVER);
-
 
             }
 
@@ -494,6 +478,9 @@ class PHP_Webserver_Router
 
     }
 
+    /**
+     *  Adjust some $_SERVER variables
+     */
     function fix_path_info()
     {
 
@@ -502,11 +489,8 @@ class PHP_Webserver_Router
         if (($url_no_q = strstr($url, '?', true)) !== FALSE) {
             $url = $url_no_q;
         }
-
-
+        
         $path_info = isset($_SERVER['PHP_INFO']) ? $_SERVER['PHP_INFO'] : '/';
-        $script_name = $_SERVER['SCRIPT_NAME'];
-        $php_self = $_SERVER['PHP_SELF'];
 
         if (($dot = strstr($url, '.')) !== FALSE) {
 
@@ -514,25 +498,15 @@ class PHP_Webserver_Router
 
                 $explode = explode('/', $dot);
                 $path_info = '/' . $explode[1];
-                $script_name = strstr($url, '.', TRUE) . rtrim($ext, '/');
-                $php_self = substr($php_self, strlen($script_name)) . $script_name;
-                $script_name = $php_self;
 
             }
 
         }
 
-        /* echo 'url:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' . $url . '<br />';
-         echo 'path info:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' . $path_info . '<br />';
-         echo 'php self:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' . $php_self . '<br />';
-         echo 'script name&nbsp;&nbsp;&nbsp;' . $script_name;*/
-
         if (isset($_SERVER['HTTP_L'])) {
             $_SERVER['HTTP_CACHE_CONTROL'] = $_SERVER['HTTP_L'];
             unset($_SERVER['HTTP_L']);
         }
-
-        //$_SERVER['PHP_SELF'] = $php_self;
 
         if (!isset($_SERVER['PHP_INFO']) && substr($_SERVER['REQUEST_URI'], -1, 1) !== '/' && $this->getExt($_SERVER['REQUEST_URI']) == "") {
 
@@ -544,12 +518,7 @@ class PHP_Webserver_Router
         $_SERVER['ORIG_PHP_SELF'] = $_SERVER['PHP_SELF'];
         $_SERVER['ORIG_PATH_INFO'] = isset($_SERVER['PATH_INFO']) ? $_SERVER['PATH_INFO'] : "";
 
-        //echo $_SERVER['SCRIPT_NAME'].'<br />';
-        //echo '<pre>';
-        //print_r($_SERVER);
-        //$_SERVER['SCRIPT_NAME'] = $script_name; // drupal themes won't work with this on
         $_SERVER['PATH_INFO'] = $path_info;
-        //echo $_SERVER['SCRIPT_NAME'].'<br />';
 
         $_SERVER['PHP_SELF'] = $_SERVER['SCRIPT_NAME'] . $_SERVER['PATH_INFO'];
 
@@ -604,9 +573,6 @@ class PHP_Webserver_Router
 
             if (strlen(trim($falsy_ext))) {
 
-                /**
-                 * Check for PHP
-                 */
                 if (($e = strstr($falsy_ext, '/', TRUE)) !== FALSE) {
                     $falsy_ext = $e;
                 }
@@ -622,7 +588,6 @@ class PHP_Webserver_Router
         }
 
         return $this->bootstrap();
-
 
     }
 
