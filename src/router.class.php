@@ -1,4 +1,5 @@
 <?php
+error_reporting(E_ALL);
 $headers = array('Accept', 'Accept-CH', 'Accept-Charset', 'Accept-Datetime', 'Accept-Encoding', 'Accept-Ext', 'Accept-Features', 'Accept-Language', 'Accept-Params', 'Accept-Ranges',
     'Access-Control-Allow-Credentials', 'Access-Control-Allow-Headers', 'Access-Control-Allow-Methods', 'Access-Control-Allow-Origin', 'Access-Control-Expose-Headers',
     'Access-Control-Max-Age', 'Access-Control-Request-Headers', 'Access-Control-Request-Method', 'Age', 'Allow', 'Alternates', 'Authentication-Info', 'Authorization', 'C-Ext',
@@ -395,6 +396,7 @@ class PHP_Webserver_Router
         } else {
 
             if (file_exists($uri_filepath) && !is_dir($uri_filepath)) {
+            //if (is_file($uri_filepath)) {
 
                 $this->process_request();
 
@@ -407,12 +409,12 @@ class PHP_Webserver_Router
                 //echo $this->script_filename.'<br />'.$_SERVER['SCRIPT_FILENAME'];
                 //die();
 
-                if( in_array($this->getExt($this->script_filename), array("","php")) ){
+                if (in_array($this->getExt($this->script_filename), array("", "php"))) {
 
                     //return include($_SERVER['SCRIPT_FILENAME']);
-                    return include($_SERVER['DOCUMENT_ROOT'] .'/' . $this->indexPath);
+                    return include($_SERVER['DOCUMENT_ROOT'] . '/' . $this->indexPath);
 
-                }else{
+                } else {
 
                     return include($this->script_filename);
 
@@ -493,6 +495,71 @@ class PHP_Webserver_Router
 
     }
 
+    function fix_path_info()
+    {
+
+        $url = $_SERVER['REQUEST_URI'];
+
+        if (($url_no_q = strstr($url, '?', true)) !== FALSE) {
+            $url = $url_no_q;
+        }
+
+
+        $path_info = isset($_SERVER['PHP_INFO']) ? $_SERVER['PHP_INFO'] : '/';
+        $script_name = $_SERVER['SCRIPT_NAME'];
+        $php_self = $_SERVER['PHP_SELF'];
+
+        if (($dot = strstr($url, '.')) !== FALSE) {
+
+            if (($ext = strstr($dot, '/', TRUE)) !== FALSE) {
+
+                $explode = explode('/', $dot);
+                $path_info = '/' . $explode[1];
+                $script_name = strstr($url, '.', TRUE) . rtrim($ext, '/');
+                $php_self = substr($php_self, strlen($script_name)) . $script_name;
+                $script_name = $php_self;
+
+            }
+
+        }
+
+        /* echo 'url:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' . $url . '<br />';
+         echo 'path info:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' . $path_info . '<br />';
+         echo 'php self:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' . $php_self . '<br />';
+         echo 'script name&nbsp;&nbsp;&nbsp;' . $script_name;*/
+
+        if( isset($_SERVER['HTTP_L'])){
+            $_SERVER['HTTP_CACHE_CONTROL'] = $_SERVER['HTTP_L'];
+            unset($_SERVER['HTTP_L']);
+        }
+
+        //$_SERVER['PHP_SELF'] = $php_self;
+
+        if (!isset($_SERVER['PHP_INFO']) && substr($_SERVER['REQUEST_URI'], -1, 1) !== '/' && $this->getExt($_SERVER['REQUEST_URI']) == "") {
+
+            $_SERVER['REQUEST_URI'] = $_SERVER['REQUEST_URI'] . '/';
+            $_SERVER['PHP_SELF'] =  $_SERVER['PHP_SELF'] .'/';
+
+        }
+
+        $_SERVER['ORIG_PHP_SELF'] = $_SERVER['PHP_SELF'];
+        $_SERVER['ORIG_PATH_INFO'] = isset($_SERVER['PATH_INFO']) ? $_SERVER['PATH_INFO'] : "";
+
+        //echo $_SERVER['SCRIPT_NAME'].'<br />';
+        //echo '<pre>';
+        //print_r($_SERVER);
+        //$_SERVER['SCRIPT_NAME'] = $script_name; // drupal themes won't work with this on
+        $_SERVER['PATH_INFO'] = $path_info;
+        //echo $_SERVER['SCRIPT_NAME'].'<br />';
+
+        $_SERVER['PHP_SELF'] = $_SERVER['SCRIPT_NAME'];
+
+        if( substr($_SERVER['PHP_SELF'], -1 , 1 ) == '/'){
+            $_SERVER['PHP_SELF'] = substr($_SERVER['PHP_SELF'],0,-1);
+        }
+
+    }
+
     /**
      * Listen for requests
      * @return bool|mixed
@@ -500,15 +567,43 @@ class PHP_Webserver_Router
     function listen()
     {
 
+        $this->fix_path_info();
         $this->init();
 
-        if ($this->URIhasPHP()) {
 
-            return FALSE;
+        if (in_array($this->getExt($this->URI_no_query()), array("", "php"))) {
+
+            /**
+             * Drupal file uploads
+             */
+
+            if ($this->URIhasPHP()) {
+
+                return FALSE;
+
+            }else{
+
+                /**
+                 * Wordpress wp-admin
+                 */
+
+                if( $this->getExt($this->URI_no_query()) == "" ){
+
+                    /**
+                     * Output hack fix
+                     */
+                    header("Content-Length: -1");
+
+                    return FALSE;
+
+                }
+
+            }
 
         }
 
         return $this->bootstrap();
+
 
     }
 
