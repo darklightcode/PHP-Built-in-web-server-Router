@@ -478,6 +478,22 @@ class PHP_Webserver_Router
 
     }
 
+    public function is_root_script()
+    {
+
+        if (
+            $this->format_unix($_SERVER['SCRIPT_FILENAME']) === $this->format_unix($_SERVER['DOCUMENT_ROOT'] . '/' . $this->indexPath)
+            && $this->getExt($this->indexPath) == 'php'
+        ) {
+
+            return TRUE;
+
+        }
+
+        return FALSE;
+
+    }
+
     /**
      *  Adjust some $_SERVER variables
      */
@@ -508,24 +524,32 @@ class PHP_Webserver_Router
             unset($_SERVER['HTTP_L']);
         }
 
-        if (!isset($_SERVER['PHP_INFO']) && substr($_SERVER['REQUEST_URI'], -1, 1) !== '/' && $this->getExt($_SERVER['REQUEST_URI']) == "") {
 
-            $_SERVER['REQUEST_URI'] = $_SERVER['REQUEST_URI'] . '/';
-            $_SERVER['PHP_SELF'] = $_SERVER['PHP_SELF'] . '/';
+        if (!$this->is_root_script()) {
+
+            if (!isset($_SERVER['PHP_INFO']) && substr($_SERVER['REQUEST_URI'], -1, 1) !== '/' && $this->getExt($_SERVER['REQUEST_URI']) == "") {
+
+                $_SERVER['REQUEST_URI'] = $_SERVER['REQUEST_URI'] . '/';
+                $_SERVER['PHP_SELF'] = $_SERVER['PHP_SELF'] . '/';
+
+            }
+
+            return FALSE;
 
         }
+        /**/
 
-        if( !isset( $_SERVER['ORIG_PHP_SELF'])){
+        if (!isset($_SERVER['ORIG_PHP_SELF'])) {
             $_SERVER['ORIG_PHP_SELF'] = $_SERVER['PHP_SELF'];
         }
-        if( !isset( $_SERVER['ORIG_PHP_SELF'])){
+        if (!isset($_SERVER['ORIG_PHP_SELF'])) {
             $_SERVER['ORIG_PATH_INFO'] = "";
         }
         $_SERVER['ORIG_PATH_INFO'] = isset($_SERVER['PATH_INFO']) ? $_SERVER['PATH_INFO'] : "";
 
-        $_SERVER['PATH_INFO'] = $path_info;
+        //$_SERVER['PATH_INFO'] = $path_info;
 
-        $_SERVER['PHP_SELF'] = $_SERVER['SCRIPT_NAME'] . $_SERVER['PATH_INFO'];
+        $_SERVER['PHP_SELF'] = $_SERVER['SCRIPT_NAME'] . (isset($_SERVER['PATH_INFO']) ? $_SERVER['PATH_INFO'] : "");
 
         if (substr($_SERVER['PHP_SELF'], -1, 1) == '/') {
             $_SERVER['PHP_SELF'] = substr($_SERVER['PHP_SELF'], 0, -1);
@@ -562,8 +586,8 @@ class PHP_Webserver_Router
                  */
 
                 if ($this->getExt($this->URI_no_query()) == "") {
-                    
-                    header("Content-Length: ".$this->file_length);
+
+                    //header("Content-Length: ".$this->file_length);
 
                     return FALSE;
 
