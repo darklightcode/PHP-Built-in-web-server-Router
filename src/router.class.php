@@ -517,8 +517,23 @@ class PHP_Webserver_Router
 
             }
 
+        } else {
+
+            if (substr($path_info, -1, 1) != '/') {
+                $path_info = $path_info . '/';
+            }
+            /*echo '<pre>';
+            print_r($_SERVER);
+            die();*/
+
         }
 
+        /**
+         * Encountered during development containing "max-age"
+         * It seems to be a malformed version of HTTP_CACHE_CONTROL , HTTP_............L
+         * It would appear and disappear on random requests switching with HTTP_CACHE_CONTROL,
+         * yet both would contain the same "max-age" value
+         */
         if (isset($_SERVER['HTTP_L'])) {
             $_SERVER['HTTP_CACHE_CONTROL'] = $_SERVER['HTTP_L'];
             unset($_SERVER['HTTP_L']);
@@ -547,7 +562,47 @@ class PHP_Webserver_Router
         }
         $_SERVER['ORIG_PATH_INFO'] = isset($_SERVER['PATH_INFO']) ? $_SERVER['PATH_INFO'] : "";
 
-        //$_SERVER['PATH_INFO'] = $path_info;
+        /**
+         * Drupal 8 - NPAS:
+         *      -   upload files - ok
+         *      -   update.php - ok
+         *      -   install themes - ok
+         * Codeigniter - NPAS - ok
+         * Wordpress NPAS - install | custom links | upload | page not found - ok
+         */
+        if (isset($_SERVER['PHP_INFO'])) {
+
+            $_SERVER['PATH_INFO'] = $path_info;
+
+        } else {
+
+
+            /*if( $_SERVER['PATH_INFO'] == '/user'){
+                $_SERVER['PATH_INFO'] = '/user/';
+                $_SERVER['PHP_SELF'] = '/index.php/user/';
+            }*/
+           /* echo '<pre>';
+            print_r($_SERVER);
+            die();*/
+            if ($path_info == '/' && $_SERVER['ORIG_PATH_INFO'] != $path_info && strlen($_SERVER['ORIG_PATH_INFO'])) {
+
+                /**
+                 * Drupal 7 - default - /user doesn't redirect to login, instead it redirects to homepage - FAIL
+                 * -- breaks wordpress
+                 */
+                //$_SERVER['PATH_INFO'] = $path_info; // for /user on drupal 7
+
+                /**
+                 * Wordpress - default - install | custom links | upload | page not found - ok
+                 * -- breaks above for Drupal 7
+                 */
+                //$_SERVER['PATH_INFO'] = $_SERVER['ORIG_PATH_INFO'];
+
+            }
+
+
+        }
+
 
         $_SERVER['PHP_SELF'] = $_SERVER['SCRIPT_NAME'] . (isset($_SERVER['PATH_INFO']) ? $_SERVER['PATH_INFO'] : "");
 
