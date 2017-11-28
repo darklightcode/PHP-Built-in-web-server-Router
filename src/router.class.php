@@ -49,6 +49,8 @@ class PHP_Webserver_Router
 
     var $script_filename = "";
 
+    var $accepted_extensions_as_root = array("php", "html", "htm");
+
     function __construct()
     {
 
@@ -494,6 +496,72 @@ class PHP_Webserver_Router
 
     }
 
+    private function __is_static_file()
+    {
+
+        return $this->getExt(strtolower($_SERVER['SCRIPT_FILENAME'])) != 'php';
+        //return in_array($this->getExt(strtolower($_SERVER['SCRIPT_FILENAME'])),array("html","html"));
+
+    }
+
+    private function __url_add_trailing_slash()
+    {
+        $_SERVER['REQUEST_URI'] = $_SERVER['REQUEST_URI'] . '/';
+    }
+
+    private function __im_not_a_method_trust_me()
+    {
+        return substr($_SERVER['REQUEST_URI'], -1, 1) !== '/' && !strlen($this->getExt(trim(urldecode($_SERVER['REQUEST_URI']))));
+    }
+
+    private function fix_url_rewrite()
+    {
+
+        if ($this->__im_not_a_method_trust_me()) {
+
+            if (
+                !isset($_SERVER['PHP_INFO'])
+                ||
+                $this->__is_static_file()
+            ) {
+
+                $this->__url_add_trailing_slash();
+
+                /**
+                 * Force redirect on HTML, HTM files
+                 */
+                if ($this->__is_static_file()) {
+
+                    header("Location: " . $_SERVER['REQUEST_URI']);
+                    exit;
+
+                }
+
+            }
+
+        } else {
+
+            /**
+             * Make sure we have a Content-Length
+             * for static files after redirect.
+             */
+            if ($this->__is_static_file()) {
+
+                header("Content-Length: " . $this->file_length);
+
+            }
+
+        }
+
+        /*if (!isset($_SERVER['PHP_INFO']) && substr($_SERVER['REQUEST_URI'], -1, 1) !== '/' && $this->getExt($_SERVER['REQUEST_URI']) == "") {
+
+            $this->__url_add_trailing_slash();
+            $_SERVER['PHP_SELF'] = $_SERVER['PHP_SELF'] . '/';
+
+        }*/
+
+    }
+
     /**
      *  Adjust some $_SERVER variables
      */
@@ -529,10 +597,15 @@ class PHP_Webserver_Router
         }
 
         /**
-         * Encountered during development containing "max-age"
+         * Correct HTTP_CACHE_CONTROL
+         * Problem:
+         * Encountered during development containing a value of "max-age"
          * It seems to be a malformed version of HTTP_CACHE_CONTROL , HTTP_............L
          * It would appear and disappear on random requests switching with HTTP_CACHE_CONTROL,
-         * yet both would contain the same "max-age" value
+         * yet both would contain "max-age"
+         * Logic: Since both HTTP_CACHE_CONTROL and HTTP_L switch places on random request and HTTP_L is an invalid header
+         * we can detect if HTTP_CACHE_CONTROL was about to be created by checking for HTTP_L
+         * Solution: Check for HTTP_L and assign the value to HTTP_CACHE_CONTROL
          */
         if (isset($_SERVER['HTTP_L'])) {
             $_SERVER['HTTP_CACHE_CONTROL'] = $_SERVER['HTTP_L'];
@@ -540,23 +613,38 @@ class PHP_Webserver_Router
         }
 
 
+        /**
+         * Correct URL's by adding a trailing slash for independent folders
+         * These folders don't require $_SERVER['DOCUMENT_ROOT'] .'/'. $this->indexPath
+         * and may have their own index file.
+         * e.g. : /my-custom-folder -> /my-custom-folder/
+         *
+         * Problems:
+         *      -   incorrect output of relative links
+         *      -   incorrect process of certain pages
+         * Logic: Check if the processed file is different from $_SERVER['DOCUMENT_ROOT'] .'/'. $this->indexPath to determine if your app is loading or something else.
+         * Solution: Append a trailing slash to $_SERVER['REQUEST_URI'] and pass it to the web-server
+         */
         if (!$this->is_root_script()) {
 
-            if (!isset($_SERVER['PHP_INFO']) && substr($_SERVER['REQUEST_URI'], -1, 1) !== '/' && $this->getExt($_SERVER['REQUEST_URI']) == "") {
+            $this->fix_url_rewrite();
 
-                $_SERVER['REQUEST_URI'] = $_SERVER['REQUEST_URI'] . '/';
-                $_SERVER['PHP_SELF'] = $_SERVER['PHP_SELF'] . '/';
-
-            }
+            //header("Content-Length: " . $this->file_length);
 
             return FALSE;
 
         }
-        /**/
 
+        /**
+         * Keep original PHP_SELF
+         * ORIG_PHP_SELF -
+         */
         if (!isset($_SERVER['ORIG_PHP_SELF'])) {
             $_SERVER['ORIG_PHP_SELF'] = $_SERVER['PHP_SELF'];
         }
+        /**
+         * Create ORIG_PATH_INFO variable
+         */
         if (!isset($_SERVER['ORIG_PHP_SELF'])) {
             $_SERVER['ORIG_PATH_INFO'] = "";
         }
@@ -576,30 +664,7 @@ class PHP_Webserver_Router
 
         } else {
 
-
-            /*if( $_SERVER['PATH_INFO'] == '/user'){
-                $_SERVER['PATH_INFO'] = '/user/';
-                $_SERVER['PHP_SELF'] = '/index.php/user/';
-            }*/
-           /* echo '<pre>';
-            print_r($_SERVER);
-            die();*/
-            if ($path_info == '/' && $_SERVER['ORIG_PATH_INFO'] != $path_info && strlen($_SERVER['ORIG_PATH_INFO'])) {
-
-                /**
-                 * Drupal 7 - default - /user doesn't redirect to login, instead it redirects to homepage - FAIL
-                 * -- breaks wordpress
-                 */
-                //$_SERVER['PATH_INFO'] = $path_info; // for /user on drupal 7
-
-                /**
-                 * Wordpress - default - install | custom links | upload | page not found - ok
-                 * -- breaks above for Drupal 7
-                 */
-                //$_SERVER['PATH_INFO'] = $_SERVER['ORIG_PATH_INFO'];
-
-            }
-
+           // $this->fix_url_rewrite();
 
         }
 
