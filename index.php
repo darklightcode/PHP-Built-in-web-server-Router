@@ -8,6 +8,22 @@
     <title>PHP-Built-in-web-server-Router</title>
     <link href="https://fonts.googleapis.com/css?family=Roboto:300,400" rel="stylesheet">
     <link href="assets/css/style.css" rel="stylesheet">
+    <script type="application/javascript" src="/jq.js" ></script>
+    <script type="application/javascript">
+        (function($){
+            console.log("lel");
+            $.ajax({
+                url: "http://<?php echo $_SERVER['HTTP_HOST']?>/none",
+                type: "POST",
+                success: function(data){
+                    console.log(data);
+                },
+                error: function(err){
+                    console.log("err",err);
+                }
+            })
+        })(jQuery)
+    </script>
 </head>
 <?php
 $bing = json_decode(file_get_contents("http://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=en-US"), true);

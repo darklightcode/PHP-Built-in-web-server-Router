@@ -54,6 +54,17 @@ class PHP_Webserver_Router
     function __construct()
     {
 
+        if (!function_exists('console_output')) {
+
+            function console_output()
+            {
+
+                call_user_func_array(array(new PHP_Webserver_Router(), 'console'), func_get_args());
+
+            }
+
+        }
+
     }
 
     /**
@@ -154,6 +165,7 @@ class PHP_Webserver_Router
 
         $favicon_urls = array(
             "favicon.ico",
+            "favicon.png",
             "apple-touch-icon-120x120-precomposed.png",
             "apple-touch-icon-precomposed.png",
             "apple-touch-icon.png"
@@ -197,7 +209,12 @@ class PHP_Webserver_Router
                 clearstatcache();
             }
 
-            $this->console(sprintf("%s [%s]: %s", $host_port, $this->http_status, urldecode($this->request_uri)));
+            $date = new DateTime();
+
+            $is_ajax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') ? "[XHR]" : "";
+            $method = isset($_SERVER['REQUEST_METHOD']) ? "[" . strtoupper($_SERVER['REQUEST_METHOD']) . "]" : "";
+
+            $this->console(sprintf("[%s] %s [%s]%s%s: %s", $date->format(DateTime::RFC2822), $host_port, $this->http_status, $method, $is_ajax, urldecode($this->request_uri)));
 
         }
 
@@ -356,17 +373,6 @@ class PHP_Webserver_Router
     function bootstrap()
     {
 
-        if (!function_exists('console_output')) {
-
-            function console_output()
-            {
-
-                call_user_func_array(array(new PHP_Webserver_Router(), 'console'), func_get_args());
-
-            }
-
-        }
-
         chdir($_SERVER['DOCUMENT_ROOT']);
 
         $uri_path = $this->URI_no_query();
@@ -392,7 +398,6 @@ class PHP_Webserver_Router
         } else {
 
             if (file_exists($uri_filepath) && !is_dir($uri_filepath)) {
-                //if (is_file($uri_filepath)) {
 
                 $this->process_request();
 
@@ -500,7 +505,6 @@ class PHP_Webserver_Router
     {
 
         return $this->getExt(strtolower($_SERVER['SCRIPT_FILENAME'])) != 'php';
-        //return in_array($this->getExt(strtolower($_SERVER['SCRIPT_FILENAME'])),array("html","html"));
 
     }
 
@@ -553,13 +557,6 @@ class PHP_Webserver_Router
 
         }
 
-        /*if (!isset($_SERVER['PHP_INFO']) && substr($_SERVER['REQUEST_URI'], -1, 1) !== '/' && $this->getExt($_SERVER['REQUEST_URI']) == "") {
-
-            $this->__url_add_trailing_slash();
-            $_SERVER['PHP_SELF'] = $_SERVER['PHP_SELF'] . '/';
-
-        }*/
-
     }
 
     /**
@@ -590,9 +587,6 @@ class PHP_Webserver_Router
             if (substr($path_info, -1, 1) != '/') {
                 $path_info = $path_info . '/';
             }
-            /*echo '<pre>';
-            print_r($_SERVER);
-            die();*/
 
         }
 
@@ -629,8 +623,6 @@ class PHP_Webserver_Router
 
             $this->fix_url_rewrite();
 
-            //header("Content-Length: " . $this->file_length);
-
             return FALSE;
 
         }
@@ -664,7 +656,11 @@ class PHP_Webserver_Router
 
         } else {
 
-           // $this->fix_url_rewrite();
+            /**
+             * Drupal 7 - default:
+             *      -   /user must show /user/ page - fix
+             */
+            $this->fix_url_rewrite();
 
         }
 
@@ -706,8 +702,6 @@ class PHP_Webserver_Router
                  */
 
                 if ($this->getExt($this->URI_no_query()) == "") {
-
-                    //header("Content-Length: ".$this->file_length);
 
                     return FALSE;
 
@@ -752,8 +746,9 @@ class PHP_Webserver_Router
 
                 ob_start();
                 print_r($arg);
-                $output = ob_get_clean();
-                error_log($output, 4);
+                $output = ob_get_contents();
+                ob_end_clean();
+                file_put_contents("php://stdout", $output . PHP_EOL);
 
             }
 
