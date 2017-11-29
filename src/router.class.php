@@ -202,19 +202,13 @@ class PHP_Webserver_Router
         if ($this->log_enable) {
 
             $host_port = $_SERVER["REMOTE_ADDR"] . ":" . $_SERVER["REMOTE_PORT"];
-            $uri_path = explode("?", urldecode($this->request_uri));
-
-            if (!file_exists($_SERVER['DOCUMENT_ROOT'] . '/' . $uri_path[0])) {
-                $this->http_status = 404;
-                clearstatcache();
-            }
 
             $date = new DateTime();
 
             $is_ajax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') ? "[XHR]" : "";
             $method = isset($_SERVER['REQUEST_METHOD']) ? "[" . strtoupper($_SERVER['REQUEST_METHOD']) . "]" : "";
 
-            $this->console(sprintf("[%s] %s [%s]%s%s: %s", $date->format(DateTime::RFC2822), $host_port, $this->http_status, $method, $is_ajax, urldecode($this->request_uri)));
+            $this->console(sprintf("[%s] %s %s%s: %s", $date->format(DateTime::RFC2822), $host_port, $method, $is_ajax, urldecode($this->request_uri)));
 
         }
 
@@ -258,7 +252,7 @@ class PHP_Webserver_Router
 
             $this->favicon();
 
-            header('HTTP/1.1 404 Not Found');
+            header($_SERVER['SERVER_PROTOCOL'].' 404 Not Found');
             $this->http_status = 404;
 
         } else {
@@ -277,7 +271,7 @@ class PHP_Webserver_Router
 
             if (@strtotime($_SERVER['HTTP_IF_MODIFIED_SINCE']) == $this->last_modified || $this->eTagHeader == $this->eTag) {
 
-                header('HTTP/1.1 304 Not Modified');
+                header($_SERVER['SERVER_PROTOCOL'].' 304 Not Modified');
                 $this->http_status = 304;
 
             } else {
@@ -289,8 +283,6 @@ class PHP_Webserver_Router
             }
 
         }
-
-        $this->log_output();
 
         exit;
 
@@ -682,6 +674,8 @@ class PHP_Webserver_Router
 
         $this->fix_path_info();
         $this->init();
+        $this->log_output();
+
 
         $falsy_ext = $this->getExt($this->URI_no_query());
 
