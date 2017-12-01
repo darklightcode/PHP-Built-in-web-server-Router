@@ -1,6 +1,7 @@
 # **Use this only in a development environment**
 
 # PHP-Built-in-web-server-Router
+![PHP-Built-in-web-server-Router](./src/php_5.png)
 
 This library comes with **caching support** for [**PHP built-in web-server**](http://php.net/manual/en/features.commandline.webserver.php)
 
@@ -101,8 +102,8 @@ return $php_web_server->listen();
 ```
 
 # Notes
-I've tested this with simple php files and the following php frameworks:
-* Yii2 ( i know Yii2 has [it's own webserver](http://www.yiiframework.com/wiki/819/php-built-in-server-integration/), but it doesn't have caching support unfortunately )
+I've tested this with the following php frameworks:
+* Yii2
 * CodeIgniter 3
 * Wordpress
 * Drupal 7 and 8
