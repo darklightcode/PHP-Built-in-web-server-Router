@@ -11,7 +11,7 @@
 </head>
 <?php
 $bing = json_decode(file_get_contents("http://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=en-US"), true);
-$image = '//bing.com/' . $bing["images"][0]["url"];
+$image = '//www.bing.com/' . $bing["images"][0]["url"];
 ?>
 <body style="background:url('<?php echo $image ?>')">
 <div class="main">

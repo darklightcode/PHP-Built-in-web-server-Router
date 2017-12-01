@@ -47,8 +47,23 @@ class PHP_Webserver_Router
     var $php_warning = 0;
     var $php_notice = 0;
 
+    var $script_filename = "";
+
+    var $accepted_extensions_as_root = array("php", "html", "htm");
+
     function __construct()
     {
+
+        if (!function_exists('console_output')) {
+
+            function console_output()
+            {
+
+                call_user_func_array(array(new PHP_Webserver_Router(), 'console'), func_get_args());
+
+            }
+
+        }
 
     }
 
@@ -68,10 +83,24 @@ class PHP_Webserver_Router
 
         }, E_ALL);
 
-        $this->request_uri = \filter_input(\INPUT_SERVER, 'REQUEST_URI', \FILTER_SANITIZE_ENCODED);
-        $this->request_uri = preg_replace('([/\\\]+)', '/', urldecode($this->request_uri));
+        /**
+         * Fixed cross-os include path
+         */
+        set_include_path(get_include_path() . (DIRECTORY_SEPARATOR == '/' ? ':' : ';') . $_SERVER['DOCUMENT_ROOT']);
 
-        $this->physical_file = preg_replace('([/\\\]+)', '/', $_SERVER['SCRIPT_FILENAME']);
+        if (ini_get('auto_prepend_file') && !in_array(realpath(ini_get('auto_prepend_file')), get_included_files(), true)) {
+
+            include(ini_get('auto_prepend_file'));
+
+        }
+
+        $this->refresh_paths();
+        $this->script_filename = $_SERVER['SCRIPT_FILENAME'];
+
+        $this->request_uri = \filter_input(\INPUT_SERVER, 'REQUEST_URI', \FILTER_SANITIZE_ENCODED);
+        $this->request_uri = $this->format_unix(urldecode($this->request_uri));
+
+        $this->physical_file = $this->format_unix($_SERVER['SCRIPT_FILENAME']);
         $this->extension = strrev(strstr(strrev($this->physical_file), '.', TRUE));
 
         $this->last_modified = time();
@@ -88,6 +117,21 @@ class PHP_Webserver_Router
 
         $this->if_modified_since = (isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) ? $_SERVER['HTTP_IF_MODIFIED_SINCE'] : false);
         $this->eTagHeader = (isset($_SERVER['HTTP_IF_NONE_MATCH']) ? trim($_SERVER['HTTP_IF_NONE_MATCH']) : false);
+
+    }
+
+    /**
+     * Format paths
+     */
+    function refresh_paths()
+    {
+
+        $formatVarsToUnix = array('DOCUMENT_ROOT', 'SCRIPT_FILENAME', 'SCRIPT_NAME', 'PHP_SELF');
+        foreach ($formatVarsToUnix as $var) {
+            if (isset($_SERVER[$var])) {
+                $_SERVER[$var] = preg_replace('([/\\\]+)', '/', $_SERVER[$var]);
+            }
+        }
 
     }
 
@@ -119,7 +163,15 @@ class PHP_Webserver_Router
 
         }
 
-        if (trim(strtolower($last_segment), '/') == 'favicon.ico') {
+        $favicon_urls = array(
+            "favicon.ico",
+            "favicon.png",
+            "apple-touch-icon-120x120-precomposed.png",
+            "apple-touch-icon-precomposed.png",
+            "apple-touch-icon.png"
+        );
+
+        if (in_array(trim(strtolower($last_segment), '/'), $favicon_urls)) {
 
             $boom = explode('.', phpversion());
             $version = $boom[0];
@@ -150,14 +202,13 @@ class PHP_Webserver_Router
         if ($this->log_enable) {
 
             $host_port = $_SERVER["REMOTE_ADDR"] . ":" . $_SERVER["REMOTE_PORT"];
-            $uri_path = explode("?", urldecode($this->request_uri));
 
-            if (!file_exists($_SERVER['DOCUMENT_ROOT'] . '/' . $uri_path[0])) {
-                $this->http_status = 404;
-                clearstatcache();
-            }
+            $date = new DateTime();
 
-            $this->console(sprintf("%s [%s]: %s", $host_port, $this->http_status, urldecode($this->request_uri)));
+            $is_ajax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') ? "[XHR]" : "";
+            $method = isset($_SERVER['REQUEST_METHOD']) ? "[" . strtoupper($_SERVER['REQUEST_METHOD']) . "]" : "";
+
+            $this->console(sprintf("[%s] %s %s%s: %s", $date->format(DateTime::RFC2822), $host_port, $method, $is_ajax, urldecode($this->request_uri)));
 
         }
 
@@ -201,7 +252,7 @@ class PHP_Webserver_Router
 
             $this->favicon();
 
-            header('HTTP/1.1 404 Not Found');
+            header($_SERVER['SERVER_PROTOCOL'].' 404 Not Found');
             $this->http_status = 404;
 
         } else {
@@ -220,7 +271,7 @@ class PHP_Webserver_Router
 
             if (@strtotime($_SERVER['HTTP_IF_MODIFIED_SINCE']) == $this->last_modified || $this->eTagHeader == $this->eTag) {
 
-                header('HTTP/1.1 304 Not Modified');
+                header($_SERVER['SERVER_PROTOCOL'].' 304 Not Modified');
                 $this->http_status = 304;
 
             } else {
@@ -233,9 +284,78 @@ class PHP_Webserver_Router
 
         }
 
-        $this->log_output();
-
         exit;
+
+    }
+
+    /**
+     * Get Extension
+     * @param string $str
+     * @return string
+     */
+    private function getExt($str = "")
+    {
+
+        $str = strtolower(trim($str));
+        if (($no_q = strstr($str, '?', true)) !== FALSE) {
+            $str = $no_q;
+        }
+
+        return strstr($str, '.') === FALSE ? "" : strrev(strstr(strrev($str), '.', true));
+
+
+    }
+
+    /**
+     * Format to UNIX path
+     * @param string $str
+     * @return mixed
+     */
+    private function format_unix($str = "")
+    {
+        return preg_replace('([/\\\]+)', '/', $str);
+    }
+
+    private function format_path_dir($str = "")
+    {
+
+        $str = $this->format_unix(trim($str));
+
+        if (trim($str) == '/' || strlen($str) == 0) {
+            return '/';
+        }
+
+        if (!strlen($this->getExt($str))) {
+
+            /**
+             * A path without extension or with / must be checked if it is a valid directory
+             */
+            if (is_dir($this->format_unix($_SERVER['DOCUMENT_ROOT'] . '/' . $str . '/')) || is_dir($this->format_unix($str))) {
+
+                $str = $str . '/';
+
+            } else {
+
+                $str = dirname($str) . '/';
+
+            }
+
+        } else {
+
+            $str = dirname($str) . '/';
+
+        }
+
+        $str = $this->format_unix('/' . $str);
+        $drf = $this->format_unix(strtolower($_SERVER['DOCUMENT_ROOT']));
+
+        if (DIRECTORY_SEPARATOR != '/' && substr(strtolower($str), 1, strlen($drf)) == $drf) {
+
+            $str = ltrim($str, '/');
+
+        }
+
+        return $str;
 
     }
 
@@ -245,80 +365,20 @@ class PHP_Webserver_Router
     function bootstrap()
     {
 
-        if (!function_exists('console_output')) {
-
-            function console_output()
-            {
-
-                call_user_func_array(array(new PHP_Webserver_Router(), 'console'), func_get_args());
-
-            }
-
-        }
-
         chdir($_SERVER['DOCUMENT_ROOT']);
 
         $uri_path = $this->URI_no_query();
         $uri_filepath = $_SERVER['DOCUMENT_ROOT'] . '/' . urldecode(substr($uri_path, 1));
 
-        if ($this->mvc_enabled == FALSE) {
-
-            if (!file_exists($uri_filepath) && !is_dir($uri_filepath)) {
-
-                header('HTTP/1.1 404 Not Found');
-                $this->log_output();
-                die();
-
-            } else {
-
-                $new_dir = $uri_filepath;
-
-                if (is_dir($new_dir)) {
-
-                    $search_files = scandir($new_dir);
-
-                    $index_array = array("index.php", "index.html", "index.htm");
-
-                    $found_index = false;
-
-                    foreach ($index_array as $key => $index) {
-
-                        if (in_array($index, $search_files) && $found_index == false) {
-
-                            $found_index = true;
-                            $this->indexPath = $uri_path . "/" . $index;
-
-                        }
-
-                        if ($key == count($index_array) - 1 && !$found_index) {
-
-                            $html = "";
-                            foreach ($search_files as $files) {
-                                $html .= '<a href="' . rtrim($this->request_uri, '/') . '/' . $files . '" >' . $files . '</a><br />';
-                            }
-
-                            echo $html;
-                            die();
-
-                        }
-
-                    }
-
-                }
-
-            }
-
-        }
 
         $load_index = $_SERVER['DOCUMENT_ROOT'] . "/" . $this->indexPath;
-        $load_index = preg_replace('([/\\\]+)', '/', trim($load_index));
+        $load_index = $this->format_unix(trim($load_index));
 
-        /**
-         * Fix server globals
-         */
-        $_SERVER['SCRIPT_NAME'] = DIRECTORY_SEPARATOR . $this->indexPath;
-        $_SERVER['PHP_SELF'] = DIRECTORY_SEPARATOR . $this->indexPath;
-        $_SERVER['SCRIPT_FILENAME'] = $_SERVER['DOCUMENT_ROOT'] . DIRECTORY_SEPARATOR . $this->indexPath;
+
+        $_SERVER['SCRIPT_NAME'] = $this->format_unix(DIRECTORY_SEPARATOR . $this->indexPath);
+        $_SERVER['PHP_SELF'] = $this->format_unix($uri_path);
+
+        $_SERVER['SCRIPT_FILENAME'] = $this->format_unix($_SERVER['DOCUMENT_ROOT'] . DIRECTORY_SEPARATOR . $this->indexPath);
 
         if (!file_exists($load_index)) {
 
@@ -339,7 +399,15 @@ class PHP_Webserver_Router
 
                 $this->favicon();
 
-                return include($_SERVER['DOCUMENT_ROOT'] . "/$this->indexPath");
+                if (in_array($this->getExt($this->script_filename), array("", "php"))) {
+
+                    return include($_SERVER['DOCUMENT_ROOT'] . '/' . $this->indexPath);
+
+                } else {
+
+                    return include($this->script_filename);
+
+                }
 
             }
 
@@ -409,6 +477,194 @@ class PHP_Webserver_Router
 
     }
 
+    public function is_root_script()
+    {
+
+        if (
+            $this->format_unix($_SERVER['SCRIPT_FILENAME']) === $this->format_unix($_SERVER['DOCUMENT_ROOT'] . '/' . $this->indexPath)
+            && $this->getExt($this->indexPath) == 'php'
+        ) {
+
+            return TRUE;
+
+        }
+
+        return FALSE;
+
+    }
+
+    private function __is_static_file()
+    {
+
+        return $this->getExt(strtolower($_SERVER['SCRIPT_FILENAME'])) != 'php';
+
+    }
+
+    private function __url_add_trailing_slash()
+    {
+        $_SERVER['REQUEST_URI'] = $_SERVER['REQUEST_URI'] . '/';
+    }
+
+    private function __im_not_a_method_trust_me()
+    {
+        return substr($_SERVER['REQUEST_URI'], -1, 1) !== '/' && !strlen($this->getExt(trim(urldecode($_SERVER['REQUEST_URI']))));
+    }
+
+    private function fix_url_rewrite()
+    {
+
+        if ($this->__im_not_a_method_trust_me()) {
+
+            if (
+                !isset($_SERVER['PHP_INFO'])
+                ||
+                $this->__is_static_file()
+            ) {
+
+                $this->__url_add_trailing_slash();
+
+                /**
+                 * Force redirect on HTML, HTM files
+                 */
+                if ($this->__is_static_file()) {
+
+                    header("Location: " . $_SERVER['REQUEST_URI']);
+                    exit;
+
+                }
+
+            }
+
+        } else {
+
+            /**
+             * Make sure we have a Content-Length
+             * for static files after redirect.
+             */
+            if ($this->__is_static_file()) {
+
+                header("Content-Length: " . $this->file_length);
+
+            }
+
+        }
+
+    }
+
+    /**
+     *  Adjust some $_SERVER variables
+     */
+    function fix_path_info()
+    {
+
+        $url = $_SERVER['REQUEST_URI'];
+
+        if (($url_no_q = strstr($url, '?', true)) !== FALSE) {
+            $url = $url_no_q;
+        }
+
+        $path_info = isset($_SERVER['PHP_INFO']) ? $_SERVER['PHP_INFO'] : '/';
+
+        if (($dot = strstr($url, '.')) !== FALSE) {
+
+            if (($ext = strstr($dot, '/', TRUE)) !== FALSE) {
+
+                $explode = explode('/', $dot);
+                $path_info = '/' . $explode[1];
+
+            }
+
+        } else {
+
+            if (substr($path_info, -1, 1) != '/') {
+                $path_info = $path_info . '/';
+            }
+
+        }
+
+        /**
+         * Correct HTTP_CACHE_CONTROL
+         * Problem:
+         * Encountered during development containing a value of "max-age"
+         * It seems to be a malformed version of HTTP_CACHE_CONTROL , HTTP_............L
+         * It would appear and disappear on random requests switching with HTTP_CACHE_CONTROL,
+         * yet both would contain "max-age"
+         * Logic: Since both HTTP_CACHE_CONTROL and HTTP_L switch places on random request and HTTP_L is an invalid header
+         * we can detect if HTTP_CACHE_CONTROL was about to be created by checking for HTTP_L
+         * Solution: Check for HTTP_L and assign the value to HTTP_CACHE_CONTROL
+         */
+        if (isset($_SERVER['HTTP_L'])) {
+            $_SERVER['HTTP_CACHE_CONTROL'] = $_SERVER['HTTP_L'];
+            unset($_SERVER['HTTP_L']);
+        }
+
+
+        /**
+         * Correct URL's by adding a trailing slash for independent folders
+         * These folders don't require $_SERVER['DOCUMENT_ROOT'] .'/'. $this->indexPath
+         * and may have their own index file.
+         * e.g. : /my-custom-folder -> /my-custom-folder/
+         *
+         * Problems:
+         *      -   incorrect output of relative links
+         *      -   incorrect process of certain pages
+         * Logic: Check if the processed file is different from $_SERVER['DOCUMENT_ROOT'] .'/'. $this->indexPath to determine if your app is loading or something else.
+         * Solution: Append a trailing slash to $_SERVER['REQUEST_URI'] and pass it to the web-server
+         */
+        if (!$this->is_root_script()) {
+
+            $this->fix_url_rewrite();
+
+            return FALSE;
+
+        }
+
+        /**
+         * Keep original PHP_SELF
+         * ORIG_PHP_SELF -
+         */
+        if (!isset($_SERVER['ORIG_PHP_SELF'])) {
+            $_SERVER['ORIG_PHP_SELF'] = $_SERVER['PHP_SELF'];
+        }
+        /**
+         * Create ORIG_PATH_INFO variable
+         */
+        if (!isset($_SERVER['ORIG_PHP_SELF'])) {
+            $_SERVER['ORIG_PATH_INFO'] = "";
+        }
+        $_SERVER['ORIG_PATH_INFO'] = isset($_SERVER['PATH_INFO']) ? $_SERVER['PATH_INFO'] : "";
+
+        /**
+         * Drupal 8 - NPAS:
+         *      -   upload files - ok
+         *      -   update.php - ok
+         *      -   install themes - ok
+         * Codeigniter - NPAS - ok
+         * Wordpress NPAS - install | custom links | upload | page not found - ok
+         */
+        if (isset($_SERVER['PHP_INFO'])) {
+
+            $_SERVER['PATH_INFO'] = $path_info;
+
+        } else {
+
+            /**
+             * Drupal 7 - default:
+             *      -   /user must show /user/ page - fix
+             */
+            $this->fix_url_rewrite();
+
+        }
+
+
+        $_SERVER['PHP_SELF'] = $_SERVER['SCRIPT_NAME'] . (isset($_SERVER['PATH_INFO']) ? $_SERVER['PATH_INFO'] : "");
+
+        if (substr($_SERVER['PHP_SELF'], -1, 1) == '/') {
+            $_SERVER['PHP_SELF'] = substr($_SERVER['PHP_SELF'], 0, -1);
+        }
+
+    }
+
     /**
      * Listen for requests
      * @return bool|mixed
@@ -416,19 +672,50 @@ class PHP_Webserver_Router
     function listen()
     {
 
+        $this->fix_path_info();
         $this->init();
+        $this->log_output();
 
-        if ($this->URIhasPHP()) {
 
-            if ($this->mvc_enabled == TRUE) {
+        $falsy_ext = $this->getExt($this->URI_no_query());
+
+        if (in_array($falsy_ext, array("", "php"))) {
+
+            /**
+             * Drupal file uploads
+             */
+
+            if ($this->URIhasPHP()) {
 
                 return FALSE;
 
             } else {
 
-                $this->indexPath = $this->URI_Filename() !== FALSE ? $this->URI_Filename() : $this->URI_no_query();
+                /**
+                 * Wordpress wp-admin
+                 */
 
-                return $this->bootstrap();
+                if ($this->getExt($this->URI_no_query()) == "") {
+
+                    return FALSE;
+
+                }
+
+            }
+
+        } else {
+
+            if (strlen(trim($falsy_ext))) {
+
+                if (($e = strstr($falsy_ext, '/', TRUE)) !== FALSE) {
+                    $falsy_ext = $e;
+                }
+
+                if ($falsy_ext == 'php') {
+
+                    return FALSE;
+
+                }
 
             }
 
@@ -453,8 +740,9 @@ class PHP_Webserver_Router
 
                 ob_start();
                 print_r($arg);
-                $output = ob_get_clean();
-                error_log($output, 4);
+                $output = ob_get_contents();
+                ob_end_clean();
+                file_put_contents("php://stdout", $output . PHP_EOL);
 
             }
 
