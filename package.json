@@ -12,7 +12,7 @@
     "start-drupal7": "php -d max_execution_time=280 -S 0.0.0.0:9005 -t ./drupal7 src/router.php",
     "start-drupal8": "php -d max_execution_time=280 -S 0.0.0.0:9006 -t ./drupal8 src/router.php",
     "test-router-path": "node ./test/routerPath.js",
-    "deployDev": "tsc --listEmittedFiles && git add -A && git commit -a -m \"deploy dev changes\" && npm version patch && git pull --progress -v --no-rebase \"origin\" && git push --tags --progress \"origin\" master:master"
+    "deployDev": "git add -A && git commit -a -m \"deploy dev changes\" && npm version patch && git pull --progress -v --no-rebase \"origin\" && git push --tags --progress \"origin\" master:master"
   },
   "repository": {
     "type": "git",
