@@ -103,9 +103,10 @@ return $php_web_server->listen();
 
 # Notes
 I've tested this with the following php frameworks:
+* Slim 3 ( **the newest addition to this list** )
 * Yii2
 * CodeIgniter 3
-* Wordpress
+* Wordpress 4
 * Drupal 7 and 8
 
 On the first request sent to router.php, it will attempt to download and create mimes.json, if that fails, you can find mimes.json in ./src/ and copy it next to router.php

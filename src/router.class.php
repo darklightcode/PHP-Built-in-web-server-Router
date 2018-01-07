@@ -252,7 +252,7 @@ class PHP_Webserver_Router
 
             $this->favicon();
 
-            header($_SERVER['SERVER_PROTOCOL'].' 404 Not Found');
+            header($_SERVER['SERVER_PROTOCOL'] . ' 404 Not Found');
             $this->http_status = 404;
 
         } else {
@@ -271,7 +271,7 @@ class PHP_Webserver_Router
 
             if (@strtotime($_SERVER['HTTP_IF_MODIFIED_SINCE']) == $this->last_modified || $this->eTagHeader == $this->eTag) {
 
-                header($_SERVER['SERVER_PROTOCOL'].' 304 Not Modified');
+                header($_SERVER['SERVER_PROTOCOL'] . ' 304 Not Modified');
                 $this->http_status = 304;
 
             } else {
@@ -651,11 +651,25 @@ class PHP_Webserver_Router
             /**
              * Drupal 7 - default:
              *      -   /user must show /user/ page - fix
+             * Slim 3 - will enable if DRUPAL_ROOT is not found in your index.php
              */
-            $this->fix_url_rewrite();
+            $readFile = fopen($_SERVER['DOCUMENT_ROOT'] . '/' . $this->indexPath, "r");
+            $isDrupal = false;
+            if ($readFile) {
+                while (!feof($readFile) && $isDrupal == false) {
+                    $buffer = fread($readFile, 4096);
+                    if (strstr($buffer, 'DRUPAL_ROOT') !== FALSE) {
+                        $isDrupal = true;
+                    }
+                }
+                fclose($readFile);
+            }
+
+            if ($isDrupal) {
+                $this->fix_url_rewrite();
+            }
 
         }
-
 
         $_SERVER['PHP_SELF'] = $_SERVER['SCRIPT_NAME'] . (isset($_SERVER['PATH_INFO']) ? $_SERVER['PATH_INFO'] : "");
 

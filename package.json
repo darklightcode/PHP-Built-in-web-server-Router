@@ -1,6 +1,6 @@
 {
   "name": "php-built-in-web-server-router",
-  "version": "1.2.3",
+  "version": "1.5.1",
   "description": "A router library for your PHP Built-in Webserver.",
   "main": "index.js",
   "scripts": {
@@ -11,7 +11,9 @@
     "start-wordpress48": "php -d max_execution_time=280 -S 0.0.0.0:9004 -t ./wordpress48 src/router.php",
     "start-drupal7": "php -d max_execution_time=280 -S 0.0.0.0:9005 -t ./drupal7 src/router.php",
     "start-drupal8": "php -d max_execution_time=280 -S 0.0.0.0:9006 -t ./drupal8 src/router.php",
-    "test-router-path": "node ./test/routerPath.js"
+    "start-slim": "php -d max_execution_time=280 -S 0.0.0.0:9007 -t ./slim/public src/router.php",
+    "test-router-path": "node ./test/routerPath.js",
+    "deployDev": "git add -A && git commit -a -m \"deploy dev changes\" && npm version patch && git pull --progress -v --no-rebase \"origin\" && git push --tags --progress \"origin\" master:master"
   },
   "repository": {
     "type": "git",
