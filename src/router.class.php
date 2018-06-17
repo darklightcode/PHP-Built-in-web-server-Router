@@ -370,7 +370,6 @@ class PHP_Webserver_Router
         $uri_path = $this->URI_no_query();
         $uri_filepath = $_SERVER['DOCUMENT_ROOT'] . '/' . urldecode(substr($uri_path, 1));
 
-
         $load_index = $_SERVER['DOCUMENT_ROOT'] . "/" . $this->indexPath;
         $load_index = $this->format_unix(trim($load_index));
 
@@ -679,6 +678,37 @@ class PHP_Webserver_Router
 
     }
 
+
+    /**
+     * Autodetect index
+     */
+    function autoDetectIndex()
+    {
+
+        $indexRoot = $_SERVER["DOCUMENT_ROOT"] . '/' . $this->indexPath;
+
+        if (!file_exists($indexRoot)) {
+
+            $viableFilesForIndex = array('index.php', 'index.phtml', 'index.html', 'index.htm', 'index.html5', 'index.php5');
+
+            $scanRoot = scandir($_SERVER["DOCUMENT_ROOT"]);
+            $scanRoot = array_filter($scanRoot, function ($k) use ($viableFilesForIndex) {
+                return in_array(strtolower($k), $viableFilesForIndex);
+            });
+            $scanRoot = array_values($scanRoot);
+
+            if (count($scanRoot)) {
+
+                $this->indexPath = $scanRoot[0];
+
+            }
+
+        }
+
+
+    }
+
+
     /**
      * Listen for requests
      * @return bool|mixed
@@ -690,8 +720,9 @@ class PHP_Webserver_Router
         $this->init();
         $this->log_output();
 
-
         $falsy_ext = $this->getExt($this->URI_no_query());
+
+        $this->autoDetectIndex();
 
         if (in_array($falsy_ext, array("", "php"))) {
 
