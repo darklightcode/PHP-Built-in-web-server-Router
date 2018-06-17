@@ -1,6 +1,6 @@
 {
   "name": "php-built-in-web-server-router",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "description": "A router library for your PHP Built-in Webserver.",
   "main": "index.js",
   "scripts": {
